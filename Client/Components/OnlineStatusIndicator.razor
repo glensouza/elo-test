@@ -1,0 +1,24 @@
+@* https://code-maze.com/use-browser-functionalities-with-blazor-webassembly/ *@
+@inject IJSRuntime JavaScriptRuntime
+
+<div class="rounded-circle" style="width:15px; height: 15px; margin: 10px; background-color: @color"></div>
+
+@code {
+    private string color = "red";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if(firstRender)
+        {
+            DotNetObjectReference<OnlineStatusIndicator> dotNetObjRef = DotNetObjectReference.Create(this);
+            await JavaScriptRuntime.InvokeVoidAsync("jsFunctions.registerOnlineStatusHandler", dotNetObjRef);
+        }
+    }
+
+    [JSInvokable]
+    public void SetOnlineStatusColor(bool isOnline)
+    {
+        this.color = isOnline ? "green" : "red";
+        StateHasChanged();
+    }
+}
