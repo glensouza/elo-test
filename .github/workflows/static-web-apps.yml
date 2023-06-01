@@ -6,6 +6,7 @@ on:
       - main
     paths-ignore:
       - "EloTest/**"
+      - "AppImages/**"
       - "Tests/**"
       - "BlazorOnGitHubPages/**"
       - ".github/workflows/gh-pages.yml"
