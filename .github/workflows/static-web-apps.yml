@@ -4,9 +4,9 @@ on:
   push:
     branches:
       - main
-      paths-ignore:
-        - "BlazorOnGitHubPages/**"
-        - ".github/workflows/gh-pages.yml"
+    paths-ignore:
+      - "BlazorOnGitHubPages/**"
+      - ".github/workflows/gh-pages.yml"
   pull_request:
     types: [opened, synchronize, reopened, closed]
     branches:
