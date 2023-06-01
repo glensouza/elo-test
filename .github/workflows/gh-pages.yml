@@ -22,7 +22,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PUBLISH_DIR: bin/Release/netstandard2.1/publish/wwwroot
+  PUBLISH_DIR: BlazorOnGitHubPages/bin/Release/netstandard2.1/publish/wwwroot
 
 jobs:
   # Single deploy job since we're just deploying
@@ -39,7 +39,7 @@ jobs:
 
 
       - name: Publish app
-        run: dotnet publish -c Release
+        run: dotnet publish -c Release BlazorOnGitHubPages
   
       - name: Rewrite base href
         uses: SteveSandersonMS/ghaction-rewrite-base-href@v1
@@ -47,14 +47,14 @@ jobs:
           html_path: ${{ env.PUBLISH_DIR }}/index.html
           base_href: /elo-test/
   
-      - name: GitHub Pages
-        if: success()
-        uses: crazy-max/ghaction-github-pages@v1.5.1
-        with:
-          target_branch: gh-pages
-          build_dir: ${{ env.PUBLISH_DIR }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # - name: GitHub Pages
+      #   if: success()
+      #   uses: crazy-max/ghaction-github-pages@v1.5.1
+      #   with:
+      #     target_branch: gh-pages
+      #     build_dir: ${{ env.PUBLISH_DIR }}
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   
 
 
@@ -66,7 +66,7 @@ jobs:
         uses: actions/upload-pages-artifact@v1
         with:
           # Upload entire repository
-          path: '.'
+          path: ${{ env.PUBLISH_DIR }}
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v2
