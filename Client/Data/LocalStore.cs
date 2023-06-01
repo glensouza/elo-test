@@ -10,8 +10,8 @@ public class LocalStore
     private readonly IJSRuntime js;
     private const string LocalEdits = "localedits";
     private const string ServerData = "serverdata";
-    private const string ApiVehicleDetailsUrl = "api/elo/details";
-    private const string ApiVehicleNewElosUrl = "api/elo/changedvehicles";
+    private const string ApiEloDetailsUrl = "api/elo/details";
+    private const string ApiNewElosUrl = "api/elo/changedelos";
     private const string JsGetAll = "localStore.getAll";
     private const string JsGetFirstFromIndex = "localStore.getFirstFromIndex";
     private const string JsPutAllFromJson = "localStore.putAllFromJson";
@@ -35,19 +35,19 @@ public class LocalStore
         // If there are local edits, always send them first
         foreach (EloModel editedElo in await this.GetOutstandingLocalEditsAsync())
         {
-            HttpResponseMessage response = await this.httpClient.PutAsJsonAsync(ApiVehicleDetailsUrl, editedElo);
+            HttpResponseMessage response = await this.httpClient.PutAsJsonAsync(ApiEloDetailsUrl, editedElo);
             response.EnsureSuccessStatusCode();
-            await this.DeleteAsync(LocalEdits, editedElo.LicenseNumber);
+            await this.DeleteAsync(LocalEdits, editedElo.PicId);
         }
 
         await this.FetchChangesAsync();
     }
 
     // If there's an outstanding local edit, use that. If not, use the server data.
-    public async Task<EloModel?> GetElo(string licenseNumber)
+    public async Task<EloModel?> GetElo(string picId)
     {
-        return await this.GetAsync<EloModel>(LocalEdits, licenseNumber)
-               ?? await this.GetAsync<EloModel>(ServerData, licenseNumber);
+        return await this.GetAsync<EloModel>(LocalEdits, picId)
+               ?? await this.GetAsync<EloModel>(ServerData, picId);
     }
 
     public ValueTask SaveAsync(EloModel elo) => this.PutAsync(LocalEdits, null, elo);
@@ -56,7 +56,7 @@ public class LocalStore
     {
         EloModel? mostRecentlyUpdated = await this.js.InvokeAsync<EloModel>(JsGetFirstFromIndex, ServerData);
         DateTime since = mostRecentlyUpdated?.LastUpdated ?? DateTime.MinValue;
-        string json = await this.httpClient.GetStringAsync(ApiVehicleNewElosUrl);
+        string json = await this.httpClient.GetStringAsync(ApiNewElosUrl);
         await this.js.InvokeVoidAsync(JsPutAllFromJson, ServerData, json);
     }
 
