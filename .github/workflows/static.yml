@@ -21,9 +21,12 @@ concurrency:
   group: "pages"
   cancel-in-progress: false
 
+env:
+  PUBLISH_DIR: bin/Release/netstandard2.1/publish/wwwroot
+
 jobs:
   # Single deploy job since we're just deploying
-  deploy:
+  BuildAndDeploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -31,6 +34,32 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
+
+
+
+      - name: Publish app
+        run: dotnet publish -c Release
+  
+      - name: Rewrite base href
+        uses: SteveSandersonMS/ghaction-rewrite-base-href@v1
+        with:
+          html_path: ${{ env.PUBLISH_DIR }}/index.html
+          base_href: /elo-test/
+  
+      - name: GitHub Pages
+        if: success()
+        uses: crazy-max/ghaction-github-pages@v1.5.1
+        with:
+          target_branch: gh-pages
+          build_dir: ${{ env.PUBLISH_DIR }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  
+
+
+
+
       - name: Setup Pages
         uses: actions/configure-pages@v3
       - name: Upload artifact
