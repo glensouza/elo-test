@@ -1,11 +1,13 @@
 # Simple workflow for deploying static content to GitHub Pages
-name: Deploy static content to Pages
+name: GitHub Pages
 
 on:
   # Runs on pushes targeting the default branch
   push:
     branches: ["main"]
-
+    paths:
+      - "BlazorOnGitHubPages/**"
+      - ".github/workflows/gh-pages.yml"
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -35,9 +37,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-
-
-
       - name: Publish app
         run: dotnet publish -c Release BlazorOnGitHubPages
   
@@ -47,26 +46,15 @@ jobs:
           html_path: ${{ env.PUBLISH_DIR }}/index.html
           base_href: /elo-test/
   
-      # - name: GitHub Pages
-      #   if: success()
-      #   uses: crazy-max/ghaction-github-pages@v1.5.1
-      #   with:
-      #     target_branch: gh-pages
-      #     build_dir: ${{ env.PUBLISH_DIR }}
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  
-
-
-
-
       - name: Setup Pages
         uses: actions/configure-pages@v3
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
         with:
           # Upload entire repository
           path: ${{ env.PUBLISH_DIR }}
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v2
