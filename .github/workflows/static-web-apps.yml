@@ -5,6 +5,8 @@ on:
     branches:
       - main
     paths-ignore:
+      - "EloTest/**"
+      - "Tests/**"
       - "BlazorOnGitHubPages/**"
       - ".github/workflows/gh-pages.yml"
   pull_request:
