@@ -43,9 +43,7 @@ namespace Api
             }).ToList();
 
             HttpResponseData response = req.CreateResponse(HttpStatusCode.OK);
-            //response.Headers.Add("Content-Type", "application/json; charset=utf-8");
             await response.WriteAsJsonAsync(elos);
-
             return response;
         }
     }

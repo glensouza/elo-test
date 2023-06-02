@@ -1,8 +1,10 @@
+using Api;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 
 using Azure.Data.Tables;
 using Azure.Storage.Blobs;
+using HtmlAgilityPack;
 using Microsoft.Extensions.DependencyInjection;
 
 IConfiguration config = new ConfigurationBuilder()
@@ -16,6 +18,8 @@ IHost host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults()
     .ConfigureServices(s =>
     {
+        s.AddHttpClient();
+        s.AddSingleton(_ => new CarNameGenerator());
         s.AddSingleton(_ =>
         {
             TableClient client = new(storageConnectionString, "elo");
