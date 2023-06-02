@@ -1,19 +1,34 @@
-using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Azure.Functions.Worker.Configuration;
 
-namespace ApiIsolated
-{
-    public class Program
+using Azure.Data.Tables;
+using Azure.Storage.Blobs;
+using Microsoft.Extensions.DependencyInjection;
+
+IConfiguration config = new ConfigurationBuilder()
+    .AddJsonFile("local.settings.json", optional: true, reloadOnChange: true)
+    .AddEnvironmentVariables()
+    .Build();
+
+string storageConnectionString = config.GetValue<string>("AzureWebJobsStorage");
+
+IHost host = new HostBuilder()
+    .ConfigureFunctionsWorkerDefaults()
+    .ConfigureServices(s =>
     {
-        public static void Main()
+        s.AddSingleton(_ =>
         {
-            var host = new HostBuilder()
-                .ConfigureFunctionsWorkerDefaults()
-                .Build();
+            TableClient client = new(storageConnectionString, "elo");
+            client.CreateIfNotExists();
+            return client;
+        });
+        s.AddSingleton(_ =>
+        {
+            BlobContainerClient container = new(storageConnectionString, "elo");
+            container.CreateIfNotExists();
+            return container;
+        });
+    })
+    .Build();
 
-            host.Run();
-        }
-    }
-}
+await host.RunAsync();
