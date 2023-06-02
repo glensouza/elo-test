@@ -71,25 +71,22 @@ namespace Api
 
             this.htmlDoc.LoadHtml(carDoesNotExistHtml);
 
-            HtmlNode? imgNode = this.htmlDoc.DocumentNode.SelectSingleNode("//img[@id='vehicle']");
             // Check if the image exists
+            HtmlNode? imgNode = this.htmlDoc.DocumentNode.SelectSingleNode("//img[@id='vehicle']");
             if (imgNode == null)
             {
                 this.logger.LogError("website down!");
                 return req.CreateResponse(HttpStatusCode.InternalServerError);
             }
 
-            // Do something with the image node
             string src = imgNode.GetAttributeValue("src", "");
-
-
             PictureEntity eloEntity = new() { Name = carName }; 
 
-            NullableResponse<PictureEntity> existingEloEntity = await this.pictureTableClient.GetEntityIfExistsAsync<PictureEntity>(eloEntity.PartitionKey, eloEntity.RowKey);
-            while (existingEloEntity.HasValue)
+            NullableResponse<PictureEntity> existingPictureEntity = await this.pictureTableClient.GetEntityIfExistsAsync<PictureEntity>(eloEntity.PartitionKey, eloEntity.RowKey);
+            while (existingPictureEntity.HasValue)
             {
                 eloEntity.RowKey = Guid.NewGuid().ToString();
-                existingEloEntity = await this.pictureTableClient.GetEntityIfExistsAsync<PictureEntity>(eloEntity.PartitionKey, eloEntity.RowKey);
+                existingPictureEntity = await this.pictureTableClient.GetEntityIfExistsAsync<PictureEntity>(eloEntity.PartitionKey, eloEntity.RowKey);
             }
 
             BlobClient? cloudBlockBlob = this.blobContainerClient.GetBlobClient($"{eloEntity.RowKey}.png");
@@ -109,7 +106,7 @@ namespace Api
             string uri = cloudBlockBlob.Uri.AbsoluteUri;
             if (cloudBlockBlob.CanGenerateSasUri)
             {
-                // Create a SAS token that's valid for one hour.
+                // Create a SAS token that's valid for one year
                 BlobSasBuilder sasBuilder = new()
                 {
                     BlobContainerName = cloudBlockBlob.GetParentBlobContainerClient().Name,
@@ -136,9 +133,46 @@ namespace Api
 
             // TODO: Add all elo competition entries
 
-            HttpResponseData response = req.CreateResponse(HttpStatusCode.OK);
-            response.Headers.Add("Content-Type", "text/html; charset=utf-8");
+            // get all pictures from table
+            Pageable<PictureEntity> allPicturesQuery = this.pictureTableClient.Query<PictureEntity>();
+            List<PictureEntity> allPictures = allPicturesQuery.AsPages().SelectMany(page => page.Values).ToList();
 
+            // exclude eloEntity from allPictures
+            eloEntity = allPictures.FirstOrDefault(s => s.RowKey == eloEntity.RowKey)!;
+            allPictures.Remove(eloEntity);
+
+            if (allPictures.Count > 0)
+            {
+                foreach (string pictureId in allPictures.Select(s => s.RowKey))
+                {
+                    NullableResponse<EloEntity> existingEloEntity = await this.eloTableClient.GetEntityIfExistsAsync<EloEntity>(eloEntity.PartitionKey, pictureId);
+                    if(existingEloEntity.HasValue)
+                    {
+                        existingEloEntity.Value.Won = null;
+                        await this.eloTableClient.UpdateEntityAsync(existingEloEntity.Value, ETag.All, TableUpdateMode.Replace);
+                    }
+                    else
+                    {
+                        await this.eloTableClient.AddEntityAsync(new EloEntity { PartitionKey = eloEntity.RowKey, RowKey = pictureId, Won = null });
+                    }
+
+                    existingEloEntity = await this.eloTableClient.GetEntityIfExistsAsync<EloEntity>(pictureId, eloEntity.PartitionKey);
+                    if (existingEloEntity.HasValue)
+                    {
+                        existingEloEntity.Value.Won = null;
+                        await this.eloTableClient.UpdateEntityAsync(existingEloEntity.Value, ETag.All, TableUpdateMode.Replace);
+                    }
+                    else
+                    {
+                        await this.eloTableClient.AddEntityAsync(new EloEntity { PartitionKey = pictureId, RowKey = eloEntity.RowKey, Won = null });
+                    }
+                }
+            }
+
+            HttpResponseData response = req.CreateResponse(HttpStatusCode.OK);
+
+            // return this while testing:
+            response.Headers.Add("Content-Type", "text/html; charset=utf-8");
             await response.WriteStringAsync($"<html><body><h1>{carName}</h1><br /><img src='{src}' /></body></html");
 
             return response;

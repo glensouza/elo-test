@@ -21,7 +21,18 @@ public class CarNameGenerator
     {
         this.carNames.Shuffle();
         int firstName = Random.Shared.Next(this.carNames.Count);
+        if (this.carNames[firstName].Contains(' '))
+        {
+            return this.carNames[firstName];
+        }
+
         int secondName = Random.Shared.Next(this.carNames.Count);
-        return $"{this.carNames[firstName]} {this.carNames[secondName]}";
+        if (this.carNames[secondName].Contains(' '))
+        {
+            return this.carNames[secondName];
+        }
+
+        string generatedCarName = $"{this.carNames[firstName]} {this.carNames[secondName]}";
+        return generatedCarName;
     }
 }
