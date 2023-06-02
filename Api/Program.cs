@@ -20,12 +20,8 @@ IHost host = new HostBuilder()
     {
         s.AddHttpClient();
         s.AddSingleton(_ => new CarNameGenerator());
-        s.AddSingleton(_ =>
-        {
-            TableClient client = new(storageConnectionString, "elo");
-            client.CreateIfNotExists();
-            return client;
-        });
+        s.AddSingleton(_ => new EloTable(storageConnectionString));
+        s.AddSingleton(_ => new PictureTable(storageConnectionString));
         s.AddSingleton(_ =>
         {
             BlobContainerClient container = new(storageConnectionString, "elo");

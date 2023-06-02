@@ -25,17 +25,25 @@ namespace Api
         private readonly HttpClient httpClient;
         private readonly CarNameGenerator carNameGenerator;
         private readonly HtmlDocument htmlDoc;
-        private readonly TableClient tableClient;
+        private readonly TableClient eloTableClient;
+        private readonly TableClient pictureTableClient;
         private readonly BlobContainerClient blobContainerClient;
         private const string CarDoesNotExistUrl = "https://www.thisautomobiledoesnotexist.com/";
 
-        public GenerateNewEloFunction(ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory, CarNameGenerator carNameGenerator, TableClient tableClient, BlobContainerClient blobClient)
+        public GenerateNewEloFunction(
+            ILoggerFactory loggerFactory, 
+            IHttpClientFactory httpClientFactory, 
+            CarNameGenerator carNameGenerator, 
+            EloTable eloTable,
+            PictureTable pictureTable,
+            BlobContainerClient blobClient)
         {
             this.logger = loggerFactory.CreateLogger<GenerateNewEloFunction>();
             this.httpClient = httpClientFactory.CreateClient();
             this.carNameGenerator = carNameGenerator;
             this.htmlDoc = new HtmlDocument();
-            this.tableClient = tableClient;
+            this.eloTableClient = eloTable.Client;
+            this.pictureTableClient = pictureTable.Client;
             this.blobContainerClient = blobClient;
         }
 
@@ -44,9 +52,16 @@ namespace Api
         {
             this.logger.LogInformation("C# HTTP trigger function processed a request.");
 
-            // TODO: verify uniqueness of name
-            string carName = this.carNameGenerator.GetRandomCarName();
+            string carName;
+            Pageable<TableEntity> queryUniquePictureEntities;
+            do
+            {
+                // verify uniqueness of name
+                carName = this.carNameGenerator.GetRandomCarName();
+                queryUniquePictureEntities = this.pictureTableClient.Query<TableEntity>($"{nameof(PictureEntity.Name)} eq '{carName}'", 1);
+            } while (queryUniquePictureEntities.Any());
 
+            // go get a car image
             string carDoesNotExistHtml = await this.httpClient.GetStringAsync(CarDoesNotExistUrl);
             if (string.IsNullOrEmpty(carDoesNotExistHtml))
             {
@@ -54,15 +69,10 @@ namespace Api
                 return req.CreateResponse(HttpStatusCode.InternalServerError);
             }
 
-
-
-
-
-
             this.htmlDoc.LoadHtml(carDoesNotExistHtml);
 
             HtmlNode? imgNode = this.htmlDoc.DocumentNode.SelectSingleNode("//img[@id='vehicle']");
-            // Check if the node exists
+            // Check if the image exists
             if (imgNode == null)
             {
                 this.logger.LogError("website down!");
@@ -75,11 +85,11 @@ namespace Api
 
             PictureEntity eloEntity = new() { Name = carName }; 
 
-            NullableResponse<PictureEntity> existingEloEntity = await this.tableClient.GetEntityIfExistsAsync<PictureEntity>(eloEntity.PartitionKey, eloEntity.RowKey);
+            NullableResponse<PictureEntity> existingEloEntity = await this.pictureTableClient.GetEntityIfExistsAsync<PictureEntity>(eloEntity.PartitionKey, eloEntity.RowKey);
             while (existingEloEntity.HasValue)
             {
                 eloEntity.RowKey = Guid.NewGuid().ToString();
-                existingEloEntity = await this.tableClient.GetEntityIfExistsAsync<PictureEntity>(eloEntity.PartitionKey, eloEntity.RowKey);
+                existingEloEntity = await this.pictureTableClient.GetEntityIfExistsAsync<PictureEntity>(eloEntity.PartitionKey, eloEntity.RowKey);
             }
 
             BlobClient? cloudBlockBlob = this.blobContainerClient.GetBlobClient($"{eloEntity.RowKey}.png");
@@ -122,7 +132,9 @@ namespace Api
             }
 
             eloEntity.PictureUri = uri;
-            await this.tableClient.AddEntityAsync(eloEntity);
+            await this.pictureTableClient.AddEntityAsync(eloEntity);
+
+            // TODO: Add all elo competition entries
 
             HttpResponseData response = req.CreateResponse(HttpStatusCode.OK);
             response.Headers.Add("Content-Type", "text/html; charset=utf-8");
