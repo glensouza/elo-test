@@ -1,36 +1,81 @@
 ﻿@page "/vote"
+@using BlazorApp.Shared
+@using System.Net
+
+@inject HttpClient Http
 
 <PageTitle>Vote</PageTitle>
 
 <h1>Vote</h1>
 
-<div class="row">
-    <div class="col">
-        <div class="card" style="width: 18rem;">
-            <img src="..." class="card-img-top" alt="...">
-            <div class="card-body">
-                <h5 class="card-title">Card title</h5>
-                <a href="#" class="btn btn-primary">Go somewhere</a>
+<div id="pageantLoading" hidden="@pictures.Any()">
+    <img src="spinner.gif" alt="Loading..." />
+</div>
+<div hidden="@(!pictures.Any())">
+    <div class="row">
+        <div class="col">
+            <div class="card" style="width: 18rem;">
+                <img src="@currentPicture.PictureUri1" class="card-img-top" alt="@currentPicture.Name1">
+                <div class="card-body">
+                    <h5 class="card-title">@currentPicture.Name1</h5>
+                    <button class="btn btn-primary" @onclick="() => VoteForPic(1)">Vote for this car</button>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="col">
-        <div class="card" style="width: 18rem;">
-            <img src="..." class="card-img-top" alt="...">
-            <div class="card-body">
-                <h5 class="card-title">Card title</h5>
-                <a href="#" class="btn btn-primary">Go somewhere</a>
+        <div class="col">
+            <div class="card" style="width: 18rem;">
+                <img src="@currentPicture.PictureUri2" class="card-img-top" alt="@currentPicture.Name2">
+                <div class="card-body">
+                    <h5 class="card-title">@currentPicture.Name2</h5>
+                    <button class="btn btn-primary" @onclick="() => VoteForPic(2)">Vote for this car</button>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 @code {
-    /*
-    GET {{baseUrl}}/GetElosToVote
-    POST {{baseUrl}}/voteelo/?winner={{winner}}&loser={{loser}}
-    POST {{baseUrl}}/GenerateNewElo
-    POST {{baseUrl}}/ResetEloVoting
-    */
+    private List<EloVoteModel> pictures = new();
+    private EloVoteModel? currentPicture = null;
 
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            pictures = await Http.GetFromJsonAsync<List<EloVoteModel>>("/api/GetElosToVote") ?? new List<EloVoteModel>();
+            currentPicture = pictures.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+        }
+    }
+
+    private async Task VoteForPic(int pic)
+    {
+        if (currentPicture != null)
+        {
+            try
+            {
+                string winner = pic == 1 ? currentPicture.PicId1 : currentPicture.PicId2;
+                string loser = pic == 1 ? currentPicture.PicId2 : currentPicture.PicId1;
+
+                HttpResponseMessage response = await Http.PostAsync($"/api/VoteElo?winner={winner}&loser={loser}", null);
+                if (response.StatusCode == HttpStatusCode.OK)
+                {
+                    pictures.Remove(currentPicture);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
+        }
+
+        currentPicture = pictures.Any() ? pictures.FirstOrDefault() : null;
+        StateHasChanged();
+    }
+    /* TODO:
+    POST {{baseUrl}}/GenerateNewElo
+    */
 }

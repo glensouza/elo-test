@@ -1,25 +1,45 @@
 ﻿@page "/results"
+@using BlazorApp.Shared
+@inject HttpClient Http
 
 <PageTitle>Results</PageTitle>
 
 <h1>Results</h1>
 
-<div class="row">
-    <div class="col">
-        <div class="card" style="width: 18rem;">
-            <img src="..." class="card-img-top" alt="...">
-            <div class="card-body">
-                <h5 class="card-title">Card title</h5>
-                <a href="#" class="btn btn-primary">Go somewhere</a>
+<div id="pageantLoading" hidden="@pictures.Any()">
+    <img src="spinner.gif" alt="Loading..." />
+</div>
+<div>
+    <div class="row">
+        @for (int i = 0; i < pictures.Count; i++)
+        {
+            <div class="col">
+                <div class="card" style="width: 18rem;">
+                    <img src="@pictures[i].PictureUri" class="card-img-top" alt="@pictures[i].Name">
+                    <div class="card-body">
+                        <h5 class="card-title">@(i + 1) - @pictures[i].Name (@pictures[i].Rating)</h5>
+                    </div>
+                </div>
             </div>
-        </div>
+        }
     </div>
 </div>
 
 @code {
-    /*
-    GET {{baseUrl}}/GetAllElos
+    private List<EloModel> pictures = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            pictures = await Http.GetFromJsonAsync<List<EloModel>>("/api/GetAllElos") ?? new List<EloModel>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+        }
+    }
+    /* TODO:
     POST {{baseUrl}}/ResetEloVoting
     */
-
 }

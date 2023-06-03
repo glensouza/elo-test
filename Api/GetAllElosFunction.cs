@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -34,11 +35,12 @@ namespace Api
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
-            List<EloModel> elos = pictureEntities.Select(pictureEntity => new EloModel
+            List<EloModel> elos = pictureEntities.OrderByDescending(s => s.Rating).ThenBy(s => s.Name).Select(pictureEntity => new EloModel
             {
                 PicId = pictureEntity.RowKey,
                 Name = pictureEntity.Name,
                 PictureUri = pictureEntity.PictureUri,
+                Rating = double.Round(pictureEntity.Rating),
                 LastUpdated = pictureEntity.Timestamp!.Value.DateTime
             }).ToList();
 
