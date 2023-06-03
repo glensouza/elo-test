@@ -18,13 +18,13 @@ namespace Api
     public class NewEloFunction
     {
         private readonly ILogger logger;
-        private readonly TableClient tableClient;
+        private readonly TableClient pictureTableClient;
         private readonly BlobContainerClient blobContainerClient;
 
-        public NewEloFunction(ILoggerFactory loggerFactory, TableClient tableClient, BlobContainerClient blobClient)
+        public NewEloFunction(ILoggerFactory loggerFactory, PictureTable pictureTable, BlobContainerClient blobClient)
         {
             this.logger = loggerFactory.CreateLogger<NewEloFunction>();
-            this.tableClient = tableClient;
+            this.pictureTableClient = pictureTable.Client;
             this.blobContainerClient = blobClient;
         }
 
@@ -45,19 +45,19 @@ namespace Api
             string filename = audioFile.FileName;
             Stream stream = audioFile.Data;
 
-            PictureEntity eloEntity = new()
+            PictureEntity pictureEntity = new()
             {
                 Name = parsedFormBody.HasParameter("name") ? parsedFormBody.GetParameterValues("name").First() : string.Empty
             };
 
-            PictureEntity? existingEloEntity = await this.tableClient.GetEntityAsync<PictureEntity>(eloEntity.PartitionKey, eloEntity.RowKey);
+            PictureEntity? existingEloEntity = await this.pictureTableClient.GetEntityAsync<PictureEntity>(pictureEntity.PartitionKey, pictureEntity.RowKey);
             while (existingEloEntity != null)
             {
-                eloEntity.RowKey = Guid.NewGuid().ToString();
-                existingEloEntity = await this.tableClient.GetEntityAsync<PictureEntity>(eloEntity.PartitionKey, eloEntity.RowKey);
+                pictureEntity.RowKey = Guid.NewGuid().ToString();
+                existingEloEntity = await this.pictureTableClient.GetEntityAsync<PictureEntity>(pictureEntity.PartitionKey, pictureEntity.RowKey);
             }
             
-            BlobClient? cloudBlockBlob = this.blobContainerClient.GetBlobClient($"{eloEntity.RowKey}.{Path.GetExtension(filename)}");
+            BlobClient? cloudBlockBlob = this.blobContainerClient.GetBlobClient($"{pictureEntity.RowKey}.{Path.GetExtension(filename)}");
             bool fileExists = await cloudBlockBlob.ExistsAsync();
             while (fileExists)
             {
@@ -92,8 +92,8 @@ namespace Api
                 //return new ExceptionResult(new Exception("BlobClient must be authorized with Shared Key credentials to create a service SAS."), false);
             }
 
-            eloEntity.PictureUri = uri;
-            await this.tableClient.AddEntityAsync(eloEntity);
+            pictureEntity.PictureUri = uri;
+            await this.pictureTableClient.AddEntityAsync(pictureEntity);
 
             HttpResponseData response = req.CreateResponse(HttpStatusCode.OK);
             return response;

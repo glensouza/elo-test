@@ -1,0 +1,22 @@
+@baseUrl = http://localhost:7071/api
+@winner = {{GetElosToVote.response.body.$[0].PicId1}}
+@loser = {{GetElosToVote.response.body.$[0].PicId2}}
+
+###
+POST {{baseUrl}}/GenerateNewElo
+
+###
+GET {{baseUrl}}/GetAllElos
+
+###
+# @name GetElosToVote
+GET {{baseUrl}}/GetElosToVote
+
+###
+PUT {{baseUrl}}/NewElo
+
+###
+POST {{baseUrl}}/ResetEloVoting
+
+###
+POST {{baseUrl}}/voteelo/?winner={{winner}}&loser={{loser}}

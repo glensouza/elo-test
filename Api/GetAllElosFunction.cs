@@ -14,12 +14,12 @@ namespace Api
     public class GetAllElosFunction
     {
         private readonly ILogger logger;
-        private readonly TableClient tableClient;
+        private readonly TableClient pictureTableClient;
 
-        public GetAllElosFunction(ILoggerFactory loggerFactory, TableClient tableClient)
+        public GetAllElosFunction(ILoggerFactory loggerFactory, PictureTable pictureTable)
         {
             this.logger = loggerFactory.CreateLogger<GetAllElosFunction>();
-            this.tableClient = tableClient;
+            this.pictureTableClient = pictureTable.Client;
         }
 
         [Function("GetAllElos")]
@@ -27,14 +27,14 @@ namespace Api
         {
             this.logger.LogInformation("C# HTTP trigger function processed a request.");
 
-            Pageable<PictureEntity> queryEloEntities = this.tableClient.Query<PictureEntity>();
-            List<PictureEntity> eloEntities = queryEloEntities.AsPages().SelectMany(page => page.Values).ToList();
-            if (eloEntities.Count == 0)
+            Pageable<PictureEntity> queryPictureEntities = this.pictureTableClient.Query<PictureEntity>();
+            List<PictureEntity> pictureEntities = queryPictureEntities.AsPages().SelectMany(page => page.Values).ToList();
+            if (pictureEntities.Count == 0)
             {
                 return req.CreateResponse(HttpStatusCode.NotFound);
             }
 
-            List<EloModel> elos = eloEntities.Select(pictureEntity => new EloModel
+            List<EloModel> elos = pictureEntities.Select(pictureEntity => new EloModel
             {
                 PicId = pictureEntity.RowKey,
                 Name = pictureEntity.Name,

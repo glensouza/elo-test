@@ -2,11 +2,11 @@
 
 namespace Api;
 
-public class PictureTable
+public class EloTable
 {
-    public PictureTable(string storageConnectionString)
+    public EloTable(string storageConnectionString)
     {
-        this.Client = new TableClient(storageConnectionString, "picture");
+        this.Client = new TableClient(storageConnectionString, "winlose");
         this.Client.CreateIfNotExists();
     }
 
