@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Threading.Tasks;
 using Azure;
 using Azure.Data.Tables;
 using BlazorApp.Shared;
@@ -27,7 +28,7 @@ namespace Api
         }
 
         [Function("GetElosToVote")]
-        public HttpResponseData Run([HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequestData req)
+        public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequestData req)
         {
             this.logger.LogInformation("C# HTTP trigger function processed a request.");
 
@@ -36,10 +37,10 @@ namespace Api
 
             Pageable<EloEntity> queryEloEntities = this.eloTableClient.Query<EloEntity>();
             List<EloEntity> eloEntities = queryEloEntities.AsPages().SelectMany(page => page.Values.Where(s => s.Won == null)).ToList();
-            if (eloEntities.Count == 0)
-            {
-                return req.CreateResponse(HttpStatusCode.NotFound);
-            }
+            //if (eloEntities.Count == 0)
+            //{
+            //    return req.CreateResponse(HttpStatusCode.NotFound);
+            //}
 
             bool needToRunAgain = true;
             while (needToRunAgain)
@@ -78,8 +79,8 @@ namespace Api
                 });
             }
 
-            HttpResponseData? response = req.CreateResponse(HttpStatusCode.OK);
-            response.WriteAsJsonAsync(elosToVote);
+            HttpResponseData response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(elosToVote);
             return response;
         }
     }
