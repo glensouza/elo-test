@@ -1,5 +1,7 @@
 ﻿@page "/addNew"
 
+@inject HttpClient Http
+
 <PageTitle>Add New</PageTitle>
 
 <h1>Add New</h1>
@@ -16,9 +18,16 @@
     </div>
 </div>
 
+<button class="btn btn-primary" @onclick="GenerateEntries">Generate 10 entries</button>
+
 @code {
     /*
     PUT {{baseUrl}}/NewElo
+    POST {{baseUrl}}/GenerateNewElo
     */
 
+    private async Task GenerateEntries()
+    {
+        await Http.PostAsync("/api/GenerateNewElo", null);
+    }
 }
