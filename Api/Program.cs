@@ -12,7 +12,7 @@ IConfiguration config = new ConfigurationBuilder()
     .AddEnvironmentVariables()
     .Build();
 
-string storageConnectionString = config.GetValue<string>("AzureWebJobsStorage");
+string storageConnectionString = config.GetValue<string>("StorageAccount");
 
 IHost host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults()
