@@ -8,46 +8,72 @@
 
 <h1>Vote</h1>
 
-<div id="pageantLoading" hidden="@pictures.Any()">
+@if (isLoading)
+{
     <img src="spinner.gif" alt="Loading..." />
-</div>
-<div hidden="@(!pictures.Any())">
-    <div class="row">
-        <div class="col">
-            <div class="card" style="width: 18rem;">
-                <img src="@currentPicture.PictureUri1" class="card-img-top" alt="@currentPicture.Name1">
-                <div class="card-body">
-                    <h5 class="card-title">@currentPicture.Name1</h5>
-                    <button class="btn btn-primary" @onclick="() => VoteForPic(1)">Vote for this car</button>
+}
+else
+{
+    if (pictures.Any() && currentPicture != null)
+    {
+        <h2>@pictures.Count() votes to go</h2>
+        <h2>Which car do you like more?</h2>
+        <div class="row" style="max-width: 62rem;">
+            <div class="col">
+                <div class="card" style="max-width: 30rem;">
+                    <img src="@currentPicture.PictureUri1" class="card-img-top" alt="@currentPicture.Name1">
+                    <div class="card-body">
+                        <h5 class="card-title">@currentPicture.Name1</h5>
+                        <button class="btn btn-primary" @onclick="() => VoteForPic(1)">Vote for this car</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="card" style="max-width: 30rem;">
+                    <img src="@currentPicture.PictureUri2" class="card-img-top" alt="@currentPicture.Name2">
+                    <div class="card-body">
+                        <h5 class="card-title">@currentPicture.Name2</h5>
+                        <button class="btn btn-primary" @onclick="() => VoteForPic(2)">Vote for this car</button>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col">
-            <div class="card" style="width: 18rem;">
-                <img src="@currentPicture.PictureUri2" class="card-img-top" alt="@currentPicture.Name2">
-                <div class="card-body">
-                    <h5 class="card-title">@currentPicture.Name2</h5>
-                    <button class="btn btn-primary" @onclick="() => VoteForPic(2)">Vote for this car</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+    }
+    else
+    {
+        <h2>There are no more pictures to vote on. Please check back later.</h2>
+    }
+}
 
 @code {
     private List<EloVoteModel> pictures = new();
     private EloVoteModel? currentPicture = null;
+    private bool isLoading = true;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            pictures = await Http.GetFromJsonAsync<List<EloVoteModel>>("/api/GetElosToVote") ?? new List<EloVoteModel>();
-            currentPicture = pictures.FirstOrDefault();
+            HttpResponseMessage response = await Http.GetAsync("/api/GetElosToVote");
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine(response.StatusCode.ToString());
+                List<EloVoteModel>? tempPictures = await response.Content.ReadFromJsonAsync<List<EloVoteModel>>();
+                if (tempPictures != null)
+                {
+                    pictures = tempPictures;
+                    currentPicture = pictures.FirstOrDefault();
+                }
+            }
         }
-        catch (Exception ex)
+        catch (Exception e)
         {
-            Console.WriteLine(ex.ToString());
+            Console.WriteLine(  e.ToString()  );                
+        }
+        finally
+        {
+            isLoading = false;
         }
     }
 
@@ -55,6 +81,12 @@
     {
         if (currentPicture != null)
         {
+            currentPicture.Name1 = "Loading Next Picture...";
+            currentPicture.Name2 = "Loading Next Picture...";
+            currentPicture.PictureUri1 = "spinner.gif";
+            currentPicture.PictureUri2 = "spinner.gif";
+            StateHasChanged();
+
             try
             {
                 string winner = pic == 1 ? currentPicture.PicId1 : currentPicture.PicId2;
@@ -73,9 +105,7 @@
         }
 
         currentPicture = pictures.Any() ? pictures.FirstOrDefault() : null;
+        isLoading = false;
         StateHasChanged();
     }
-    /* TODO:
-    POST {{baseUrl}}/GenerateNewElo
-    */
 }
