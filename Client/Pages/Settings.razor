@@ -1,0 +1,36 @@
+﻿@page "/settings"
+@using BlazorApp.Shared
+@inject HttpClient Http
+
+<PageTitle>Settings</PageTitle>
+
+<h1>Settings</h1>
+
+<button class="btn btn-success" @onclick="GenerateEntries">Generate 10 entries</button>
+<button class="btn btn-danger" @onclick="ResetVoting">Reset Voting</button>
+
+@code {
+    private List<EloModel> pictures = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            pictures = await Http.GetFromJsonAsync<List<EloModel>>("/api/GetAllElos") ?? new List<EloModel>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+        }
+    }
+
+    private async Task GenerateEntries()
+    {
+        await Http.PostAsync("/api/GenerateNewElo", null);
+    }
+
+    private async Task ResetVoting()
+    {
+        await Http.PostAsync("/api/ResetEloVoting", null);
+    }
+}

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace BlazorApp.Shared
+﻿namespace BlazorApp.Shared
 {
     public class EloVoteModel
     {

@@ -6,26 +6,36 @@
 
 <h1>Results</h1>
 
-<div id="pageantLoading" hidden="@pictures.Any()">
-    <img src="spinner.gif" alt="Loading..." />
-</div>
 <div>
-    <div class="row">
+@if (isLoading)
+{
+    <img src="spinner.gif" alt="Loading..." />
+}
+else
+{
+    <div hidden="@pictures.Any()">
+        <h3>No pictures found</h3>
+    </div>
+    <div class="row" hidden="@(!pictures.Any())">
         @for (int i = 0; i < pictures.Count; i++)
         {
+            int index = i; // Create a local variable and assign the value of i to it
             <div class="col">
                 <div class="card" style="width: 18rem;">
-                    <img src="@pictures[i].PictureUri" class="card-img-top" alt="@pictures[i].Name">
+                    <img src="@pictures[index].PictureUri" class="card-img-top" alt="@pictures[index].Name">
                     <div class="card-body">
-                        <h5 class="card-title">@(i + 1) - @pictures[i].Name (@pictures[i].Rating)</h5>
+                        <h5 class="card-title">@(index + 1) - @pictures[index].Name (@pictures[index].Rating)</h5>
+                        <button class="btn btn-danger" @onclick="() => DeletePic(index)">Delete</button>
                     </div>
                 </div>
             </div>
         }
     </div>
+}
 </div>
 
 @code {
+    private bool isLoading = true;
     private List<EloModel> pictures = new();
 
     protected override async Task OnInitializedAsync()
@@ -38,8 +48,26 @@
         {
             Console.WriteLine(ex.ToString());
         }
+        finally
+        {
+            isLoading = false;
+        }
     }
-    /* TODO:
-    POST {{baseUrl}}/ResetEloVoting
-    */
+
+    private async Task DeletePic(int picIndex)
+    {
+        try
+        {
+            EloModel eloModel = pictures[picIndex];
+            string id = eloModel.PicId;
+            string requestUri = $"/api/DeletePicture?picId={id}";
+            await Http.DeleteAsync(requestUri);
+            pictures = await Http.GetFromJsonAsync<List<EloModel>>("/api/GetAllElos") ?? new List<EloModel>();
+            StateHasChanged();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
+    }
 }

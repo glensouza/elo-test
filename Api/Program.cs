@@ -1,10 +1,7 @@
 using Api;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-
-using Azure.Data.Tables;
 using Azure.Storage.Blobs;
-using HtmlAgilityPack;
 using Microsoft.Extensions.DependencyInjection;
 
 IConfiguration config = new ConfigurationBuilder()

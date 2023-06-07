@@ -3,6 +3,7 @@ using Azure;
 using Azure.Data.Tables;
 
 namespace Api;
+
 public class PictureEntity : ITableEntity
 {
     public string PartitionKey { get; set; } = "Elo";
