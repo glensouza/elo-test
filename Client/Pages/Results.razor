@@ -1,5 +1,6 @@
 ﻿@page "/results"
 @using BlazorApp.Shared
+@using System.Web
 @inject HttpClient Http
 
 <PageTitle>Results</PageTitle>
@@ -26,6 +27,7 @@ else
                     <div class="card-body">
                         <h5 class="card-title">@(index + 1) - @pictures[index].Name (@pictures[index].Rating)</h5>
                         <button class="btn btn-danger" @onclick="() => DeletePic(index)">Delete</button>
+                        <button class="btn btn-secondary" @onclick="@(() => OpenModal(index))">Edit</button>
                     </div>
                 </div>
             </div>
@@ -34,9 +36,49 @@ else
 }
 </div>
 
+<div class="modal @modalClass" tabindex="-1" role="dialog" style="display:@modalDisplay">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Modal title</h5>
+                <button type="button" class="close" data-dismiss="modal" @onclick="CloseModal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col">
+                        <div class="card" style="width: 18rem;">
+                            <img src="@editElo.PictureUri" class="card-img-top" alt="@editElo.Name">
+                            <div class="card-body">
+                                <h5 class="card-title">@editElo.Name</h5>
+                                <input type="text" class="form-control" @bind="editedName" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" @onclick="SaveChanges">Save changes</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal" @onclick="CloseModal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (showBackdrop)
+{
+    <div class="modal-backdrop fade show"></div>
+}
+
 @code {
     private bool isLoading = true;
     private List<EloModel> pictures = new();
+    private string modalDisplay = "none;";
+    private string modalClass = string.Empty;
+    private bool showBackdrop = false;
+    private EloModel editElo = new();
+    private string? editedName = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -59,8 +101,7 @@ else
         try
         {
             EloModel eloModel = pictures[picIndex];
-            string id = eloModel.PicId;
-            string requestUri = $"/api/DeletePicture?picId={id}";
+            string requestUri = $"/api/DeletePicture?picId={eloModel.PicId}";
             await Http.DeleteAsync(requestUri);
             pictures = await Http.GetFromJsonAsync<List<EloModel>>("/api/GetAllElos") ?? new List<EloModel>();
             StateHasChanged();
@@ -69,5 +110,39 @@ else
         {
             Console.WriteLine(e);
         }
+    }
+
+    private void OpenModal(int picIndex)
+    {
+        editElo = pictures[picIndex];
+        modalDisplay = "block;";
+        modalClass = "Show";
+        showBackdrop = true;
+        StateHasChanged();
+    }
+
+    private async Task SaveChanges()
+    {
+        if (!string.IsNullOrEmpty(editedName))
+        {
+            editElo.Name = editedName;
+            //const string url = "/api/EditName";
+            //Dictionary<string, string> newParams = new() { { "picId", editElo.PicId }, { "name", editedName } };
+            //Uri requestUri = new(QueryHelpers.AddQueryString(url, newParams));
+            string requestUri = $"/api/EditName?picId={editElo.PicId}&name={HttpUtility.UrlEncode(editedName)}";
+            await Http.PostAsync(requestUri, null);
+            pictures = await Http.GetFromJsonAsync<List<EloModel>>("/api/GetAllElos") ?? new List<EloModel>();
+        }
+        this.CloseModal();
+    }
+
+    private void CloseModal()
+    {
+        editElo = new EloModel();
+        editedName = string.Empty;
+        modalDisplay = "none";
+        modalClass = "";
+        showBackdrop = false;
+        StateHasChanged();
     }
 }

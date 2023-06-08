@@ -43,9 +43,9 @@ public class DeletePictureFunction
         {
             Pageable<PictureEntity> queryPictureToUpdateEntities = this.pictureTableClient.Query<PictureEntity>(s => s.RowKey == eloEntity.RowKey);
             PictureEntity? pictureToUpdate = queryPictureToUpdateEntities.AsPages().SelectMany(page => page.Values).FirstOrDefault();
-            if (pictureToUpdate != null)
+            if (pictureToUpdate != null && eloEntity.Score != null)
             {
-                pictureToUpdate.Rating += (double)eloEntity.Score!;
+                pictureToUpdate.Rating += (double)eloEntity.Score;
                 await this.pictureTableClient.UpdateEntityAsync(pictureToUpdate, ETag.All, TableUpdateMode.Replace);
             }
 
