@@ -1,5 +1,5 @@
 using Api;
-using Api.Entities;
+using Api.Data;
 using Api.Helpers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;

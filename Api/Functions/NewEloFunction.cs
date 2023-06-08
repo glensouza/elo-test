@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
-using Api.Entities;
+using Api.Data;
 using Azure;
 using Azure.Data.Tables;
 using Azure.Storage.Blobs;

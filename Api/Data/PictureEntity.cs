@@ -2,7 +2,7 @@
 using Azure;
 using Azure.Data.Tables;
 
-namespace Api.Entities;
+namespace Api.Data;
 
 public class PictureEntity : ITableEntity
 {

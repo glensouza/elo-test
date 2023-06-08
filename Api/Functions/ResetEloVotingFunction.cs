@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using Api.Entities;
+using Api.Data;
 using Azure;
 using Azure.Data.Tables;
 using Microsoft.Azure.Functions.Worker;

@@ -1,13 +1,13 @@
 ﻿using Azure.Data.Tables;
 
-namespace Api.Entities;
+namespace Api.Data;
 
 public class PictureTable
 {
     public PictureTable(string storageConnectionString)
     {
-        Client = new TableClient(storageConnectionString, "picture");
-        Client.CreateIfNotExists();
+        this.Client = new TableClient(storageConnectionString, "picture");
+        this.Client.CreateIfNotExists();
     }
 
     public readonly TableClient Client;

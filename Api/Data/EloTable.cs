@@ -1,6 +1,6 @@
 ﻿using Azure.Data.Tables;
 
-namespace Api;
+namespace Api.Data;
 
 public class EloTable
 {
