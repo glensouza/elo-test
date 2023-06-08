@@ -58,7 +58,7 @@ public class NewEloFunction
 
             PictureEntity pictureEntity = new()
             {
-                Name = parsedFormBody.HasParameter("name") ? parsedFormBody.GetParameterValues("name").First() : filename.Replace($".{Path.GetExtension(filename)}", string.Empty)
+                Name = parsedFormBody.HasParameter("name") ? parsedFormBody.GetParameterValues("name").First() : filename.Replace($"{Path.GetExtension(filename)}", string.Empty)
             };
 
             NullableResponse<PictureEntity> existingPictureEntity = await this.pictureTableClient.GetEntityIfExistsAsync<PictureEntity>(pictureEntity.PartitionKey, pictureEntity.RowKey);
