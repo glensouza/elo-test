@@ -68,7 +68,7 @@ public class NewEloFunction
                 existingPictureEntity = await this.pictureTableClient.GetEntityIfExistsAsync<PictureEntity>(pictureEntity.PartitionKey, pictureEntity.RowKey);
             }
 
-            BlobClient? cloudBlockBlob = this.blobContainerClient.GetBlobClient($"{pictureEntity.RowKey}.{Path.GetExtension(filename)}");
+            BlobClient? cloudBlockBlob = this.blobContainerClient.GetBlobClient($"{pictureEntity.RowKey}{Path.GetExtension(filename)}");
             bool fileExists = await cloudBlockBlob.ExistsAsync();
             while (fileExists)
             {
