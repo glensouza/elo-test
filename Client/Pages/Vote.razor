@@ -21,19 +21,23 @@ else
         <div class="row" style="max-width: 62rem;">
             <div class="col">
                 <div class="card" style="max-width: 30rem;">
-                    <img src="@currentPicture.PictureUri1" class="card-img-top" alt="@currentPicture.Name1">
+                    <div class="blurred-img" style="background-image: url(@currentPicture.PictureSmallUri1)">
+                        <img src="@currentPicture.PictureUri1" class="card-img-top @loaded1" alt="@currentPicture.Name1" loading="lazy" @onload="@(() => loaded1 = "loaded")" />
+                    </div>
                     <div class="card-body">
                         <h5 class="card-title">@currentPicture.Name1</h5>
-                        <button class="btn btn-primary" @onclick="() => VoteForPic(1)">Vote for this car</button>
+                        <button class="btn btn-primary" @onclick="() => VoteForPic(1)" disabled="@(currentPicture.Name1 == "Loading Next Picture...")">Vote for this car</button>
                     </div>
                 </div>
             </div>
             <div class="col">
                 <div class="card" style="max-width: 30rem;">
-                    <img src="@currentPicture.PictureUri2" class="card-img-top" alt="@currentPicture.Name2">
+                    <div class="blurred-img" style="background-image: url(@currentPicture.PictureSmallUri2)">
+                        <img src="@currentPicture.PictureUri2" class="card-img-top @loaded2" alt="@currentPicture.Name2" loading="lazy" @onload="@(() => loaded2 = "loaded")" />
+                    </div>
                     <div class="card-body">
                         <h5 class="card-title">@currentPicture.Name2</h5>
-                        <button class="btn btn-primary" @onclick="() => VoteForPic(2)">Vote for this car</button>
+                        <button class="btn btn-primary" @onclick="() => VoteForPic(2)" disabled="@(currentPicture.Name2 == "Loading Next Picture...")">Vote for this car</button>
                     </div>
                 </div>
             </div>
@@ -49,6 +53,8 @@ else
     private List<EloVoteModel> pictures = new();
     private EloVoteModel? currentPicture = null;
     private bool isLoading = true;
+    private string loaded1 = string.Empty;
+    private string loaded2 = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -81,11 +87,21 @@ else
     {
         if (currentPicture != null)
         {
+            loaded1 = string.Empty;
+            loaded2 = string.Empty;
             currentPicture.Name1 = "Loading Next Picture...";
             currentPicture.Name2 = "Loading Next Picture...";
+            if (pic == 1)
+            {
+                currentPicture.PictureSmallUri1 = currentPicture.PictureUri1;
+            }
+            else
+            {
+                currentPicture.PictureSmallUri2 = currentPicture.PictureUri2;
+            }
+
             currentPicture.PictureUri1 = "spinner.gif";
             currentPicture.PictureUri2 = "spinner.gif";
-            StateHasChanged();
 
             try
             {
@@ -105,7 +121,6 @@ else
         }
 
         currentPicture = pictures.Any() ? pictures.FirstOrDefault() : null;
-        isLoading = false;
         StateHasChanged();
     }
 }

@@ -71,7 +71,9 @@ public class GetElosToVoteFunction
                 Name1 = pictureEntity1.Name,
                 Name2 = pictureEntity2.Name,
                 PictureUri1 = pictureEntity1.PictureUri,
-                PictureUri2 = pictureEntity2.PictureUri
+                PictureSmallUri1 = pictureEntity1.PictureSmlUri,
+                PictureUri2 = pictureEntity2.PictureUri,
+                PictureSmallUri2 = pictureEntity2.PictureSmlUri
             });
         }
 
