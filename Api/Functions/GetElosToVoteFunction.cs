@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Api.Entities;
+using Api.Helpers;
 using Azure;
 using Azure.Data.Tables;
 using BlazorApp.Shared;
@@ -9,7 +11,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 
-namespace Api;
+namespace Api.Functions;
 
 public class GetElosToVoteFunction
 {
@@ -22,20 +24,20 @@ public class GetElosToVoteFunction
         EloTable eloTable,
         PictureTable pictureTable)
     {
-        this.logger = loggerFactory.CreateLogger<GetElosToVoteFunction>();
-        this.eloTableClient = eloTable.Client;
-        this.pictureTableClient = pictureTable.Client;
+        logger = loggerFactory.CreateLogger<GetElosToVoteFunction>();
+        eloTableClient = eloTable.Client;
+        pictureTableClient = pictureTable.Client;
     }
 
     [Function("GetElosToVote")]
     public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequestData req)
     {
-        this.logger.LogInformation("C# HTTP trigger function processed a request.");
+        logger.LogInformation("C# HTTP trigger function processed a request.");
 
         // TODO: Filtering on null doesn't work
         //Pageable<EloEntity> queryEloEntities = this.eloTableClient.Query<EloEntity>(s => s.Won == null); 
 
-        Pageable<EloEntity> queryEloEntities = this.eloTableClient.Query<EloEntity>();
+        Pageable<EloEntity> queryEloEntities = eloTableClient.Query<EloEntity>();
         List<EloEntity> eloEntities = queryEloEntities.AsPages().SelectMany(page => page.Values.Where(s => s.Won == null)).ToList();
 
         bool needToRunAgain = true;
@@ -46,14 +48,14 @@ public class GetElosToVoteFunction
             // ReSharper disable once ForeachCanBePartlyConvertedToQueryUsingAnotherGetEnumerator
             foreach (EloEntity eloEntity in eloEntities)
             {
-               if (!eloEntities.Any(s => s.PartitionKey == eloEntity.RowKey && s.RowKey == eloEntity.PartitionKey))
-               {
-                   continue;
-               }
+                if (!eloEntities.Any(s => s.PartitionKey == eloEntity.RowKey && s.RowKey == eloEntity.PartitionKey))
+                {
+                    continue;
+                }
 
-               eloEntities.RemoveAll(s => s.PartitionKey == eloEntity.RowKey && s.RowKey == eloEntity.PartitionKey);
-               needToRunAgain = true;
-               break;
+                eloEntities.RemoveAll(s => s.PartitionKey == eloEntity.RowKey && s.RowKey == eloEntity.PartitionKey);
+                needToRunAgain = true;
+                break;
             }
         }
 
@@ -61,8 +63,8 @@ public class GetElosToVoteFunction
         // ReSharper disable once ForeachCanBeConvertedToQueryUsingAnotherGetEnumerator
         foreach (EloEntity eloEntity in eloEntities)
         {
-            PictureEntity pictureEntity1= this.pictureTableClient.GetEntity<PictureEntity>("Elo", eloEntity.PartitionKey);
-            PictureEntity pictureEntity2 = this.pictureTableClient.GetEntity<PictureEntity>("Elo", eloEntity.RowKey);
+            PictureEntity pictureEntity1 = pictureTableClient.GetEntity<PictureEntity>("Elo", eloEntity.PartitionKey);
+            PictureEntity pictureEntity2 = pictureTableClient.GetEntity<PictureEntity>("Elo", eloEntity.RowKey);
 
             elosToVote.Add(new EloVoteModel
             {

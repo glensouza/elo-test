@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Api.Entities;
 using Azure;
 using Azure.Data.Tables;
 using BlazorApp.Shared;
@@ -9,7 +10,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 
-namespace Api;
+namespace Api.Functions;
 
 public class GetAllElosFunction
 {
@@ -18,16 +19,16 @@ public class GetAllElosFunction
 
     public GetAllElosFunction(ILoggerFactory loggerFactory, PictureTable pictureTable)
     {
-        this.logger = loggerFactory.CreateLogger<GetAllElosFunction>();
-        this.pictureTableClient = pictureTable.Client;
+        logger = loggerFactory.CreateLogger<GetAllElosFunction>();
+        pictureTableClient = pictureTable.Client;
     }
 
     [Function("GetAllElos")]
     public async Task<HttpResponseData> RunAsync([HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequestData req)
     {
-        this.logger.LogInformation("C# HTTP trigger function processed a request.");
+        logger.LogInformation("C# HTTP trigger function processed a request.");
 
-        Pageable<PictureEntity> queryPictureEntities = this.pictureTableClient.Query<PictureEntity>();
+        Pageable<PictureEntity> queryPictureEntities = pictureTableClient.Query<PictureEntity>();
         List<PictureEntity> pictureEntities = queryPictureEntities.AsPages().SelectMany(page => page.Values).ToList();
         if (pictureEntities.Count == 0)
         {

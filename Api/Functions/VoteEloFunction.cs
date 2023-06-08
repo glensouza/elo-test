@@ -1,13 +1,14 @@
 using System;
 using System.Net;
 using System.Threading.Tasks;
+using Api.Entities;
 using Azure;
 using Azure.Data.Tables;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 
-namespace Api;
+namespace Api.Functions;
 
 public class VoteEloFunction
 {
@@ -18,9 +19,9 @@ public class VoteEloFunction
 
     public VoteEloFunction(ILoggerFactory loggerFactory, PictureTable pictureTable, EloTable eloTable)
     {
-        this.logger = loggerFactory.CreateLogger<VoteEloFunction>();
-        this.pictureTableClient = pictureTable.Client;
-        this.eloTableClient = eloTable.Client;
+        logger = loggerFactory.CreateLogger<VoteEloFunction>();
+        pictureTableClient = pictureTable.Client;
+        eloTableClient = eloTable.Client;
     }
 
     [Function("VoteElo")]
@@ -33,9 +34,9 @@ public class VoteEloFunction
             return req.CreateResponse(HttpStatusCode.BadRequest);
         }
 
-        this.logger.LogInformation("C# HTTP trigger function processed a request. Winner: {0} -- Loser: {1}", winner, loser);
+        logger.LogInformation("C# HTTP trigger function processed a request. Winner: {0} -- Loser: {1}", winner, loser);
 
-        NullableResponse<PictureEntity> existingWinnerPictureEntity = await this.pictureTableClient.GetEntityIfExistsAsync<PictureEntity>("Elo", winner);
+        NullableResponse<PictureEntity> existingWinnerPictureEntity = await pictureTableClient.GetEntityIfExistsAsync<PictureEntity>("Elo", winner);
         if (!existingWinnerPictureEntity.HasValue)
         {
             return req.CreateResponse(HttpStatusCode.BadRequest);
@@ -43,7 +44,7 @@ public class VoteEloFunction
 
         PictureEntity winnerPictureEntity = existingWinnerPictureEntity.Value;
 
-        NullableResponse<PictureEntity> existingLoserEloEntity = await this.pictureTableClient.GetEntityIfExistsAsync<PictureEntity>("Elo", loser);
+        NullableResponse<PictureEntity> existingLoserEloEntity = await pictureTableClient.GetEntityIfExistsAsync<PictureEntity>("Elo", loser);
         if (!existingLoserEloEntity.HasValue)
         {
             return req.CreateResponse(HttpStatusCode.BadRequest);
@@ -52,7 +53,7 @@ public class VoteEloFunction
         PictureEntity loserPictureEntity = existingLoserEloEntity.Value;
 
         EloEntity winnerElo;
-        NullableResponse<EloEntity> existingWinnerElo = await this.eloTableClient.GetEntityIfExistsAsync<EloEntity>(winner, loser);
+        NullableResponse<EloEntity> existingWinnerElo = await eloTableClient.GetEntityIfExistsAsync<EloEntity>(winner, loser);
         if (existingWinnerElo.HasValue)
         {
             if (existingWinnerElo.Value.Won != null)
@@ -64,14 +65,14 @@ public class VoteEloFunction
         }
         else
         {
-            await this.eloTableClient.AddEntityAsync(new EloEntity { PartitionKey = winner, RowKey = loser, Won = null });
-            winnerElo = await this.eloTableClient.GetEntityAsync<EloEntity>(winner, loser);
+            await eloTableClient.AddEntityAsync(new EloEntity { PartitionKey = winner, RowKey = loser, Won = null });
+            winnerElo = await eloTableClient.GetEntityAsync<EloEntity>(winner, loser);
         }
 
         winnerElo.Won = true;
 
         EloEntity loserElo;
-        NullableResponse<EloEntity> existingLoserElo = await this.eloTableClient.GetEntityIfExistsAsync<EloEntity>(loser, winner);
+        NullableResponse<EloEntity> existingLoserElo = await eloTableClient.GetEntityIfExistsAsync<EloEntity>(loser, winner);
         if (existingLoserElo.HasValue)
         {
             if (existingLoserElo.Value.Won != null)
@@ -83,8 +84,8 @@ public class VoteEloFunction
         }
         else
         {
-            await this.eloTableClient.AddEntityAsync(new EloEntity { PartitionKey = loser, RowKey = winner, Won = null });
-            loserElo = await this.eloTableClient.GetEntityAsync<EloEntity>(loser, winner);
+            await eloTableClient.AddEntityAsync(new EloEntity { PartitionKey = loser, RowKey = winner, Won = null });
+            loserElo = await eloTableClient.GetEntityAsync<EloEntity>(loser, winner);
         }
 
         loserElo.Won = false;
@@ -101,10 +102,10 @@ public class VoteEloFunction
         winnerElo.Score = winnerScore;
         loserElo.Score = loserScore;
 
-        await this.pictureTableClient.UpdateEntityAsync(winnerPictureEntity, ETag.All, TableUpdateMode.Replace);
-        await this.pictureTableClient.UpdateEntityAsync(loserPictureEntity, ETag.All, TableUpdateMode.Replace);
-        await this.eloTableClient.UpdateEntityAsync(winnerElo, ETag.All, TableUpdateMode.Replace);
-        await this.eloTableClient.UpdateEntityAsync(loserElo, ETag.All, TableUpdateMode.Replace);
+        await pictureTableClient.UpdateEntityAsync(winnerPictureEntity, ETag.All, TableUpdateMode.Replace);
+        await pictureTableClient.UpdateEntityAsync(loserPictureEntity, ETag.All, TableUpdateMode.Replace);
+        await eloTableClient.UpdateEntityAsync(winnerElo, ETag.All, TableUpdateMode.Replace);
+        await eloTableClient.UpdateEntityAsync(loserElo, ETag.All, TableUpdateMode.Replace);
 
         return req.CreateResponse(HttpStatusCode.OK);
     }

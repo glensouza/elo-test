@@ -1,4 +1,6 @@
 using Api;
+using Api.Entities;
+using Api.Helpers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Azure.Storage.Blobs;

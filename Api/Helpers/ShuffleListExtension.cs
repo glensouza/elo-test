@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
-namespace Api;
+namespace Api.Helpers;
 
 public static class ShuffleListExtension
 {
