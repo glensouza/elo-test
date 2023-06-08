@@ -16,21 +16,21 @@ public class DeletePictureFunction
 {
     private readonly ILogger logger;
     private readonly TableClient pictureTableClient;
-    private readonly TableClient eloTableClient;
+    private readonly EloTable eloTable;
     private readonly BlobContainerClient blobContainerClient;
 
     public DeletePictureFunction(ILoggerFactory loggerFactory, PictureTable pictureTable, EloTable eloTable, BlobContainerClient blobClient)
     {
-        logger = loggerFactory.CreateLogger<DeletePictureFunction>();
-        pictureTableClient = pictureTable.Client;
-        eloTableClient = eloTable.Client;
-        blobContainerClient = blobClient;
+        this.logger = loggerFactory.CreateLogger<DeletePictureFunction>();
+        this.pictureTableClient = pictureTable.Client;
+        this.eloTable = eloTable;
+        this.blobContainerClient = blobClient;
     }
 
     [Function("DeletePicture")]
     public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Anonymous, "delete")] HttpRequestData req)
     {
-        logger.LogInformation("C# HTTP trigger function processed a request.");
+        this.logger.LogInformation("C# HTTP trigger function processed a request.");
 
         string? picId = req.Query["picId"];
         if (string.IsNullOrEmpty(picId))
@@ -38,38 +38,36 @@ public class DeletePictureFunction
             return req.CreateResponse(HttpStatusCode.BadRequest);
         }
 
-        Pageable<EloEntity> queryEloEntities = eloTableClient.Query<EloEntity>(s => s.PartitionKey == picId);
-        List<EloEntity> eloEntities = queryEloEntities.AsPages().SelectMany(page => page.Values).ToList();
+        List<EloEntity> eloEntities = this.eloTable.GetEloEntitiesByPartitionKey(picId);
         foreach (EloEntity eloEntity in eloEntities)
         {
-            Pageable<PictureEntity> queryPictureToUpdateEntities = pictureTableClient.Query<PictureEntity>(s => s.RowKey == eloEntity.RowKey);
+            Pageable<PictureEntity> queryPictureToUpdateEntities = this.pictureTableClient.Query<PictureEntity>(s => s.RowKey == eloEntity.RowKey);
             PictureEntity? pictureToUpdate = queryPictureToUpdateEntities.AsPages().SelectMany(page => page.Values).FirstOrDefault();
             if (pictureToUpdate != null && eloEntity.Score != null)
             {
                 pictureToUpdate.Rating += (double)eloEntity.Score;
-                await pictureTableClient.UpdateEntityAsync(pictureToUpdate, ETag.All, TableUpdateMode.Replace);
+                await this.pictureTableClient.UpdateEntityAsync(pictureToUpdate, ETag.All, TableUpdateMode.Replace);
             }
 
-            await eloTableClient.DeleteEntityAsync(picId, eloEntity.RowKey, ETag.All);
-            await eloTableClient.DeleteEntityAsync(eloEntity.RowKey, picId, ETag.All);
+            await this.eloTable.DeleteEloEntityAsync(picId, eloEntity.RowKey);
+            await this.eloTable.DeleteEloEntityAsync(eloEntity.RowKey, picId);
         }
 
-        queryEloEntities = eloTableClient.Query<EloEntity>(s => s.RowKey == picId);
-        eloEntities = queryEloEntities.AsPages().SelectMany(page => page.Values).ToList();
+        eloEntities = this.eloTable.GetEloEntitiesByRowKey(picId);
         foreach (EloEntity eloEntity in eloEntities)
         {
-            await eloTableClient.DeleteEntityAsync(picId, eloEntity.RowKey, ETag.All);
-            await eloTableClient.DeleteEntityAsync(eloEntity.RowKey, picId, ETag.All);
+            await this.eloTable.DeleteEloEntityAsync(picId, eloEntity.RowKey);
+            await this.eloTable.DeleteEloEntityAsync(eloEntity.RowKey, picId);
         }
 
-        Pageable<PictureEntity> queryPictureToDeleteEntities = pictureTableClient.Query<PictureEntity>(s => s.RowKey == picId);
+        Pageable<PictureEntity> queryPictureToDeleteEntities = this.pictureTableClient.Query<PictureEntity>(s => s.RowKey == picId);
         PictureEntity? pictureToDelete = queryPictureToDeleteEntities.AsPages().SelectMany(page => page.Values).FirstOrDefault();
         if (pictureToDelete != null)
         {
-            await pictureTableClient.DeleteEntityAsync("Elo", pictureToDelete.RowKey, ETag.All);
+            await this.pictureTableClient.DeleteEntityAsync("Elo", pictureToDelete.RowKey, ETag.All);
         }
 
-        BlobClient? bigPictureCloudBlockBlob = blobContainerClient.GetBlobClient($"{picId}.png");
+        BlobClient? bigPictureCloudBlockBlob = this.blobContainerClient.GetBlobClient($"{picId}.png");
         bool fileExists = await bigPictureCloudBlockBlob.ExistsAsync();
         while (fileExists)
         {
@@ -77,7 +75,7 @@ public class DeletePictureFunction
             fileExists = await bigPictureCloudBlockBlob.ExistsAsync();
         }
 
-        BlobClient? smallPictureCloudBlockBlob = blobContainerClient.GetBlobClient($"{picId}_sml.png");
+        BlobClient? smallPictureCloudBlockBlob = this.blobContainerClient.GetBlobClient($"{picId}_sml.png");
         fileExists = await smallPictureCloudBlockBlob.ExistsAsync();
         while (fileExists)
         {

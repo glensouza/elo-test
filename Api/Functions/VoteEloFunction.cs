@@ -14,14 +14,14 @@ public class VoteEloFunction
 {
     private readonly ILogger logger;
     private readonly TableClient pictureTableClient;
-    private readonly TableClient eloTableClient;
+    private readonly EloTable eloTable;
     private const int KFactor = 32;
 
     public VoteEloFunction(ILoggerFactory loggerFactory, PictureTable pictureTable, EloTable eloTable)
     {
-        logger = loggerFactory.CreateLogger<VoteEloFunction>();
-        pictureTableClient = pictureTable.Client;
-        eloTableClient = eloTable.Client;
+        this.logger = loggerFactory.CreateLogger<VoteEloFunction>();
+        this.pictureTableClient = pictureTable.Client;
+        this.eloTable = eloTable;
     }
 
     [Function("VoteElo")]
@@ -34,9 +34,9 @@ public class VoteEloFunction
             return req.CreateResponse(HttpStatusCode.BadRequest);
         }
 
-        logger.LogInformation("C# HTTP trigger function processed a request. Winner: {0} -- Loser: {1}", winner, loser);
+        this.logger.LogInformation("C# HTTP trigger function processed a request. Winner: {0} -- Loser: {1}", winner, loser);
 
-        NullableResponse<PictureEntity> existingWinnerPictureEntity = await pictureTableClient.GetEntityIfExistsAsync<PictureEntity>("Elo", winner);
+        NullableResponse<PictureEntity> existingWinnerPictureEntity = await this.pictureTableClient.GetEntityIfExistsAsync<PictureEntity>("Elo", winner);
         if (!existingWinnerPictureEntity.HasValue)
         {
             return req.CreateResponse(HttpStatusCode.BadRequest);
@@ -44,7 +44,7 @@ public class VoteEloFunction
 
         PictureEntity winnerPictureEntity = existingWinnerPictureEntity.Value;
 
-        NullableResponse<PictureEntity> existingLoserEloEntity = await pictureTableClient.GetEntityIfExistsAsync<PictureEntity>("Elo", loser);
+        NullableResponse<PictureEntity> existingLoserEloEntity = await this.pictureTableClient.GetEntityIfExistsAsync<PictureEntity>("Elo", loser);
         if (!existingLoserEloEntity.HasValue)
         {
             return req.CreateResponse(HttpStatusCode.BadRequest);
@@ -53,42 +53,46 @@ public class VoteEloFunction
         PictureEntity loserPictureEntity = existingLoserEloEntity.Value;
 
         EloEntity winnerElo;
-        NullableResponse<EloEntity> existingWinnerElo = await eloTableClient.GetEntityIfExistsAsync<EloEntity>(winner, loser);
-        if (existingWinnerElo.HasValue)
+        EloEntity? existingWinnerElo = await this.eloTable.GetEloEntitiesByPartitionAndRowKey(winner, loser);
+        if (existingWinnerElo != null)
         {
-            if (existingWinnerElo.Value.Won != null)
+            if (existingWinnerElo.Won != null)
             {
                 return req.CreateResponse(HttpStatusCode.BadRequest);
             }
 
-            winnerElo = existingWinnerElo.Value;
+            winnerElo = existingWinnerElo;
         }
         else
         {
-            await eloTableClient.AddEntityAsync(new EloEntity { PartitionKey = winner, RowKey = loser, Won = null });
-            winnerElo = await eloTableClient.GetEntityAsync<EloEntity>(winner, loser);
+            await this.eloTable.AddEloEntityAsync(new EloEntity { PartitionKey = winner, RowKey = loser, Won = null });
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+            winnerElo = await this.eloTable.GetEloEntitiesByPartitionAndRowKey(winner, loser);
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
         }
 
-        winnerElo.Won = true;
+        winnerElo!.Won = true;
 
         EloEntity loserElo;
-        NullableResponse<EloEntity> existingLoserElo = await eloTableClient.GetEntityIfExistsAsync<EloEntity>(loser, winner);
-        if (existingLoserElo.HasValue)
+        EloEntity? existingLoserElo = await this.eloTable.GetEloEntitiesByPartitionAndRowKey(loser, winner);
+        if (existingLoserElo != null)
         {
-            if (existingLoserElo.Value.Won != null)
+            if (existingLoserElo.Won != null)
             {
                 return req.CreateResponse(HttpStatusCode.BadRequest);
             }
 
-            loserElo = existingLoserElo.Value;
+            loserElo = existingLoserElo;
         }
         else
         {
-            await eloTableClient.AddEntityAsync(new EloEntity { PartitionKey = loser, RowKey = winner, Won = null });
-            loserElo = await eloTableClient.GetEntityAsync<EloEntity>(loser, winner);
+            await this.eloTable.AddEloEntityAsync(new EloEntity { PartitionKey = loser, RowKey = winner, Won = null });
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+            loserElo = await this.eloTable.GetEloEntitiesByPartitionAndRowKey(loser, winner);
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
         }
 
-        loserElo.Won = false;
+        loserElo!.Won = false;
 
         // Calculate the expected scores for each picture
         double winnerExpectedScore = 1 / (1 + Math.Pow(10, (loserPictureEntity.Rating - winnerPictureEntity.Rating) / 400));
@@ -102,10 +106,10 @@ public class VoteEloFunction
         winnerElo.Score = winnerScore;
         loserElo.Score = loserScore;
 
-        await pictureTableClient.UpdateEntityAsync(winnerPictureEntity, ETag.All, TableUpdateMode.Replace);
-        await pictureTableClient.UpdateEntityAsync(loserPictureEntity, ETag.All, TableUpdateMode.Replace);
-        await eloTableClient.UpdateEntityAsync(winnerElo, ETag.All, TableUpdateMode.Replace);
-        await eloTableClient.UpdateEntityAsync(loserElo, ETag.All, TableUpdateMode.Replace);
+        await this.pictureTableClient.UpdateEntityAsync(winnerPictureEntity, ETag.All, TableUpdateMode.Replace);
+        await this.pictureTableClient.UpdateEntityAsync(loserPictureEntity, ETag.All, TableUpdateMode.Replace);
+        await this.eloTable.UpdateEloEntityAsync(winnerElo);
+        await this.eloTable.UpdateEloEntityAsync(loserElo);
 
         return req.CreateResponse(HttpStatusCode.OK);
     }

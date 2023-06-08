@@ -6,7 +6,7 @@ public class PictureTable
 {
     public PictureTable(string storageConnectionString)
     {
-        this.Client = new TableClient(storageConnectionString, "picture");
+        this.Client = new TableClient(storageConnectionString, Constants.PictureTableName);
         this.Client.CreateIfNotExists();
     }
 

@@ -1,4 +1,3 @@
-using Api;
 using Api.Data;
 using Api.Helpers;
 using Microsoft.Extensions.Configuration;

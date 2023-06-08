@@ -19,16 +19,16 @@ public class GetAllElosFunction
 
     public GetAllElosFunction(ILoggerFactory loggerFactory, PictureTable pictureTable)
     {
-        logger = loggerFactory.CreateLogger<GetAllElosFunction>();
-        pictureTableClient = pictureTable.Client;
+        this.logger = loggerFactory.CreateLogger<GetAllElosFunction>();
+        this.pictureTableClient = pictureTable.Client;
     }
 
     [Function("GetAllElos")]
     public async Task<HttpResponseData> RunAsync([HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequestData req)
     {
-        logger.LogInformation("C# HTTP trigger function processed a request.");
+        this.logger.LogInformation("C# HTTP trigger function processed a request.");
 
-        Pageable<PictureEntity> queryPictureEntities = pictureTableClient.Query<PictureEntity>();
+        Pageable<PictureEntity> queryPictureEntities = this.pictureTableClient.Query<PictureEntity>();
         List<PictureEntity> pictureEntities = queryPictureEntities.AsPages().SelectMany(page => page.Values).ToList();
         if (pictureEntities.Count == 0)
         {

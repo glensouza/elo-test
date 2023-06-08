@@ -13,26 +13,26 @@ public class CarNameGenerator
         IEnumerable<string> lines = File.ReadLines("carNames.txt");
         foreach (string line in lines)
         {
-            carNames.Add(line);
+            this.carNames.Add(line);
         }
     }
 
     public string GetRandomCarName()
     {
-        carNames.Shuffle();
-        int firstName = Random.Shared.Next(carNames.Count);
-        if (carNames[firstName].Contains(' '))
+        this.carNames.Shuffle();
+        int firstName = Random.Shared.Next(this.carNames.Count);
+        if (this.carNames[firstName].Contains(' '))
         {
-            return carNames[firstName];
+            return this.carNames[firstName];
         }
 
-        int secondName = Random.Shared.Next(carNames.Count);
-        if (carNames[secondName].Contains(' '))
+        int secondName = Random.Shared.Next(this.carNames.Count);
+        if (this.carNames[secondName].Contains(' '))
         {
-            return carNames[secondName];
+            return this.carNames[secondName];
         }
 
-        string generatedCarName = $"{carNames[firstName]} {carNames[secondName]}";
+        string generatedCarName = $"{this.carNames[firstName]} {this.carNames[secondName]}";
         return generatedCarName;
     }
 }

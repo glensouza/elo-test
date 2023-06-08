@@ -133,7 +133,7 @@ else
             await Http.PostAsync(requestUri, null);
             pictures = await Http.GetFromJsonAsync<List<EloModel>>("/api/GetAllElos") ?? new List<EloModel>();
         }
-        this.CloseModal();
+        CloseModal();
     }
 
     private void CloseModal()

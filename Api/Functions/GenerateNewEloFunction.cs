@@ -28,7 +28,7 @@ public class GenerateNewEloFunction
     private readonly HttpClient httpClient;
     private readonly CarNameGenerator carNameGenerator;
     private readonly HtmlDocument htmlDoc;
-    private readonly TableClient eloTableClient;
+    private readonly EloTable eloTable;
     private readonly TableClient pictureTableClient;
     private readonly BlobContainerClient blobContainerClient;
     private const string CarDoesNotExistUrl = "https://www.thisautomobiledoesnotexist.com/";
@@ -41,19 +41,19 @@ public class GenerateNewEloFunction
         PictureTable pictureTable,
         BlobContainerClient blobClient)
     {
-        logger = loggerFactory.CreateLogger<GenerateNewEloFunction>();
-        httpClient = httpClientFactory.CreateClient();
+        this.logger = loggerFactory.CreateLogger<GenerateNewEloFunction>();
+        this.httpClient = httpClientFactory.CreateClient();
         this.carNameGenerator = carNameGenerator;
-        htmlDoc = new HtmlDocument();
-        eloTableClient = eloTable.Client;
-        pictureTableClient = pictureTable.Client;
-        blobContainerClient = blobClient;
+        this.htmlDoc = new HtmlDocument();
+        this.eloTable = eloTable;
+        this.pictureTableClient = pictureTable.Client;
+        this.blobContainerClient = blobClient;
     }
 
     [Function("GenerateNewElo")]
     public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData req)
     {
-        logger.LogInformation("C# HTTP trigger function processed a request.");
+        this.logger.LogInformation("C# HTTP trigger function processed a request.");
 
         // generate 10 Pictures
         for (int i = 0; i < 10; i++)
@@ -63,40 +63,40 @@ public class GenerateNewEloFunction
             do
             {
                 // verify uniqueness of name
-                carName = carNameGenerator.GetRandomCarName();
+                carName = this.carNameGenerator.GetRandomCarName();
                 string name = carName;
-                queryUniquePictureEntities = pictureTableClient.Query<PictureEntity>(s => s.Name == name, 1);
+                queryUniquePictureEntities = this.pictureTableClient.Query<PictureEntity>(s => s.Name == name, 1);
             } while (queryUniquePictureEntities.Any());
 
             // go get a car image
-            string carDoesNotExistHtml = await httpClient.GetStringAsync(CarDoesNotExistUrl);
+            string carDoesNotExistHtml = await this.httpClient.GetStringAsync(CarDoesNotExistUrl);
             if (string.IsNullOrEmpty(carDoesNotExistHtml))
             {
-                logger.LogError("website down!");
+                this.logger.LogError("website down!");
                 return req.CreateResponse(HttpStatusCode.InternalServerError);
             }
 
-            htmlDoc.LoadHtml(carDoesNotExistHtml);
+            this.htmlDoc.LoadHtml(carDoesNotExistHtml);
 
             // Check if the image exists
-            HtmlNode? imgNode = htmlDoc.DocumentNode.SelectSingleNode("//img[@id='vehicle']");
+            HtmlNode? imgNode = this.htmlDoc.DocumentNode.SelectSingleNode("//img[@id='vehicle']");
             if (imgNode == null)
             {
-                logger.LogError("website down!");
+                this.logger.LogError("website down!");
                 return req.CreateResponse(HttpStatusCode.InternalServerError);
             }
 
             string src = imgNode.GetAttributeValue("src", "");
             PictureEntity pictureEntity = new() { Name = carName };
 
-            NullableResponse<PictureEntity> existingPictureEntity = await pictureTableClient.GetEntityIfExistsAsync<PictureEntity>(pictureEntity.PartitionKey, pictureEntity.RowKey);
+            NullableResponse<PictureEntity> existingPictureEntity = await this.pictureTableClient.GetEntityIfExistsAsync<PictureEntity>(pictureEntity.PartitionKey, pictureEntity.RowKey);
             while (existingPictureEntity.HasValue)
             {
                 pictureEntity.RowKey = Guid.NewGuid().ToString();
-                existingPictureEntity = await pictureTableClient.GetEntityIfExistsAsync<PictureEntity>(pictureEntity.PartitionKey, pictureEntity.RowKey);
+                existingPictureEntity = await this.pictureTableClient.GetEntityIfExistsAsync<PictureEntity>(pictureEntity.PartitionKey, pictureEntity.RowKey);
             }
 
-            BlobClient? bigPictureCloudBlockBlob = blobContainerClient.GetBlobClient($"{pictureEntity.RowKey}.png");
+            BlobClient? bigPictureCloudBlockBlob = this.blobContainerClient.GetBlobClient($"{pictureEntity.RowKey}.png");
             bool fileExists = await bigPictureCloudBlockBlob.ExistsAsync();
             while (fileExists)
             {
@@ -104,7 +104,7 @@ public class GenerateNewEloFunction
                 fileExists = await bigPictureCloudBlockBlob.ExistsAsync();
             }
 
-            BlobClient? smallPictureCloudBlockBlob = blobContainerClient.GetBlobClient($"{pictureEntity.RowKey}_sml.png");
+            BlobClient? smallPictureCloudBlockBlob = this.blobContainerClient.GetBlobClient($"{pictureEntity.RowKey}_sml.png");
             fileExists = await smallPictureCloudBlockBlob.ExistsAsync();
             while (fileExists)
             {
@@ -131,13 +131,13 @@ public class GenerateNewEloFunction
                 sasBuilder.SetPermissions(BlobSasPermissions.Read);
 
                 Uri sasUri = bigPictureCloudBlockBlob.GenerateSasUri(sasBuilder);
-                logger.LogInformation("SAS URI for blob is: {0}", sasUri);
+                this.logger.LogInformation("SAS URI for blob is: {0}", sasUri);
 
                 picUri = sasUri.AbsoluteUri;
             }
             else
             {
-                logger.LogError("BlobClient must be authorized with Shared Key credentials to create a service SAS.");
+                this.logger.LogError("BlobClient must be authorized with Shared Key credentials to create a service SAS.");
             }
 
             // Resize the image to 20x20
@@ -167,21 +167,21 @@ public class GenerateNewEloFunction
                 sasBuilder.SetPermissions(BlobSasPermissions.Read);
 
                 Uri sasUri = smallPictureCloudBlockBlob.GenerateSasUri(sasBuilder);
-                logger.LogInformation("SAS URI for blob is: {0}", sasUri);
+                this.logger.LogInformation("SAS URI for blob is: {0}", sasUri);
 
                 smallPicUri = sasUri.AbsoluteUri;
             }
             else
             {
-                logger.LogError("BlobClient must be authorized with Shared Key credentials to create a service SAS.");
+                this.logger.LogError("BlobClient must be authorized with Shared Key credentials to create a service SAS.");
             }
 
             pictureEntity.PictureUri = picUri;
             pictureEntity.PictureSmlUri = smallPicUri;
-            await pictureTableClient.AddEntityAsync(pictureEntity);
+            await this.pictureTableClient.AddEntityAsync(pictureEntity);
 
             // get all pictures from table
-            Pageable<PictureEntity> allPicturesQuery = pictureTableClient.Query<PictureEntity>();
+            Pageable<PictureEntity> allPicturesQuery = this.pictureTableClient.Query<PictureEntity>();
             List<PictureEntity> allPictures = allPicturesQuery.AsPages().SelectMany(page => page.Values).ToList();
 
             // exclude eloEntity from allPictures
@@ -196,26 +196,26 @@ public class GenerateNewEloFunction
             // enter all competitions for this picture
             foreach (string pictureId in allPictures.Select(s => s.RowKey))
             {
-                NullableResponse<EloEntity> existingEloEntity = await eloTableClient.GetEntityIfExistsAsync<EloEntity>(pictureEntity.PartitionKey, pictureId);
-                if (existingEloEntity.HasValue)
+                EloEntity? existingEloEntity = await this.eloTable.GetEloEntitiesByPartitionAndRowKey(pictureEntity.PartitionKey, pictureId);
+                if (existingEloEntity != null)
                 {
-                    existingEloEntity.Value.Won = null;
-                    await eloTableClient.UpdateEntityAsync(existingEloEntity.Value, ETag.All, TableUpdateMode.Replace);
+                    existingEloEntity.Won = null;
+                    await this.eloTable.UpdateEloEntityAsync(existingEloEntity);
                 }
                 else
                 {
-                    await eloTableClient.AddEntityAsync(new EloEntity { PartitionKey = pictureEntity.RowKey, RowKey = pictureId, Won = null });
+                    await this.eloTable.AddEloEntityAsync(new EloEntity { PartitionKey = pictureEntity.RowKey, RowKey = pictureId, Won = null });
                 }
 
-                existingEloEntity = await eloTableClient.GetEntityIfExistsAsync<EloEntity>(pictureId, pictureEntity.PartitionKey);
-                if (existingEloEntity.HasValue)
+                existingEloEntity = await this.eloTable.GetEloEntitiesByPartitionAndRowKey(pictureId, pictureEntity.PartitionKey);
+                if (existingEloEntity != null)
                 {
-                    existingEloEntity.Value.Won = null;
-                    await eloTableClient.UpdateEntityAsync(existingEloEntity.Value, ETag.All, TableUpdateMode.Replace);
+                    existingEloEntity.Won = null;
+                    await this.eloTable.UpdateEloEntityAsync(existingEloEntity);
                 }
                 else
                 {
-                    await eloTableClient.AddEntityAsync(new EloEntity { PartitionKey = pictureId, RowKey = pictureEntity.RowKey, Won = null });
+                    await this.eloTable.AddEloEntityAsync(new EloEntity { PartitionKey = pictureId, RowKey = pictureEntity.RowKey, Won = null });
                 }
             }
         }
