@@ -15,12 +15,12 @@ namespace Api.Functions;
 public class GetAllElosFunction
 {
     private readonly ILogger logger;
-    private readonly TableClient pictureTableClient;
+    private readonly PictureTable pictureTableClient;
 
     public GetAllElosFunction(ILoggerFactory loggerFactory, PictureTable pictureTable)
     {
         this.logger = loggerFactory.CreateLogger<GetAllElosFunction>();
-        this.pictureTableClient = pictureTable.Client;
+        this.pictureTableClient = pictureTable;
     }
 
     [Function("GetAllElos")]
@@ -28,8 +28,7 @@ public class GetAllElosFunction
     {
         this.logger.LogInformation("C# HTTP trigger function processed a request.");
 
-        Pageable<PictureEntity> queryPictureEntities = this.pictureTableClient.Query<PictureEntity>();
-        List<PictureEntity> pictureEntities = queryPictureEntities.AsPages().SelectMany(page => page.Values).ToList();
+        List<PictureEntity> pictureEntities = this.pictureTableClient.GetAllPictureEntities();
         if (pictureEntities.Count == 0)
         {
             return req.CreateResponse(HttpStatusCode.NotFound);

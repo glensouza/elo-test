@@ -24,14 +24,14 @@ namespace Api.Functions;
 public class NewEloFunction
 {
     private readonly ILogger logger;
-    private readonly TableClient pictureTableClient;
+    private readonly PictureTable pictureTable;
     private readonly EloTable eloTable;
     private readonly BlobContainerClient blobContainerClient;
 
     public NewEloFunction(ILoggerFactory loggerFactory, PictureTable pictureTable, EloTable eloTable, BlobContainerClient blobClient)
     {
         this.logger = loggerFactory.CreateLogger<NewEloFunction>();
-        this.pictureTableClient = pictureTable.Client;
+        this.pictureTable = pictureTable;
         this.eloTable = eloTable;
         this.blobContainerClient = blobClient;
     }
@@ -62,11 +62,11 @@ public class NewEloFunction
                 Name = parsedFormBody.HasParameter("name") ? parsedFormBody.GetParameterValues("name").First() : filename.Replace($"{Path.GetExtension(filename)}", string.Empty)
             };
 
-            NullableResponse<PictureEntity> existingPictureEntity = await this.pictureTableClient.GetEntityIfExistsAsync<PictureEntity>(pictureEntity.PartitionKey, pictureEntity.RowKey);
-            while (existingPictureEntity.HasValue)
+            PictureEntity? existingPictureEntity = this.pictureTable.GetPictureEntityByRowKey(pictureEntity.RowKey);
+            while (existingPictureEntity != null)
             {
                 pictureEntity.RowKey = Guid.NewGuid().ToString();
-                existingPictureEntity = await this.pictureTableClient.GetEntityIfExistsAsync<PictureEntity>(pictureEntity.PartitionKey, pictureEntity.RowKey);
+                existingPictureEntity = this.pictureTable.GetPictureEntityByRowKey(pictureEntity.RowKey);
             }
 
             BlobClient? cloudBlockBlob = this.blobContainerClient.GetBlobClient($"{pictureEntity.RowKey}{Path.GetExtension(filename)}");
@@ -157,8 +157,7 @@ public class NewEloFunction
             }
 
             // get all pictures from table
-            Pageable<PictureEntity> allPicturesQuery = this.pictureTableClient.Query<PictureEntity>();
-            List<PictureEntity> allPictures = allPicturesQuery.AsPages().SelectMany(page => page.Values).ToList();
+            List<PictureEntity> allPictures = this.pictureTable.GetAllPictureEntities();
 
             if (allPictures.Count > 0)
             {
@@ -191,7 +190,7 @@ public class NewEloFunction
 
             pictureEntity.PictureUri = uri;
             pictureEntity.PictureSmlUri = smallPicUri;
-            await this.pictureTableClient.AddEntityAsync(pictureEntity);
+            await this.pictureTable.AddPictureEntityAsync(pictureEntity);
             uploadResults.Add(new UploadResult
             {
                 FileName = filename,

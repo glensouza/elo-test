@@ -14,13 +14,13 @@ namespace Api.Functions;
 public class ResetEloVotingFunction
 {
     private readonly ILogger logger;
-    private readonly TableClient pictureTableClient;
+    private readonly PictureTable pictureTable;
     private readonly EloTable eloTable;
 
     public ResetEloVotingFunction(ILoggerFactory loggerFactory, PictureTable pictureTable, EloTable eloTable)
     {
         this.logger = loggerFactory.CreateLogger<ResetEloVotingFunction>();
-        this.pictureTableClient = pictureTable.Client;
+        this.pictureTable = pictureTable;
         this.eloTable = eloTable;
     }
 
@@ -29,12 +29,11 @@ public class ResetEloVotingFunction
     {
         this.logger.LogInformation("C# HTTP trigger function processed a request.");
 
-        Pageable<PictureEntity> queryPictureEntities = this.pictureTableClient.Query<PictureEntity>();
-        List<PictureEntity> pictureEntities = queryPictureEntities.AsPages().SelectMany(page => page.Values).ToList();
+        List<PictureEntity> pictureEntities = this.pictureTable.GetAllPictureEntities();
         foreach (PictureEntity pictureEntity in pictureEntities)
         {
             pictureEntity.Rating = 1200;
-            await this.pictureTableClient.UpdateEntityAsync(pictureEntity, ETag.All, TableUpdateMode.Replace);
+            await this.pictureTable.UpdatePictureEntityAsync(pictureEntity);
         }
 
         List<EloEntity> eloEntities = this.eloTable.GetAllEloEntities();

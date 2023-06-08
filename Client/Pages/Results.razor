@@ -59,6 +59,7 @@ else
                 </div>
             </div>
             <div class="modal-footer">
+                <button type="button" class="btn btn-primary" @onclick="GetRandomName">Get Random Name</button>
                 <button type="button" class="btn btn-primary" @onclick="SaveChanges">Save changes</button>
                 <button type="button" class="btn btn-secondary" data-dismiss="modal" @onclick="CloseModal">Close</button>
             </div>
@@ -118,6 +119,12 @@ else
         modalDisplay = "block;";
         modalClass = "Show";
         showBackdrop = true;
+        StateHasChanged();
+    }
+
+    private async Task GetRandomName()
+    {
+        editedName = await Http.GetStringAsync("/api/GetRandomCarName") ?? string.Empty;
         StateHasChanged();
     }
 

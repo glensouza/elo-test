@@ -9,8 +9,6 @@ using Api.Data;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using Azure;
-using Azure.Data.Tables;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Specialized;
 using Azure.Storage.Sas;
@@ -29,7 +27,7 @@ public class GenerateNewEloFunction
     private readonly CarNameGenerator carNameGenerator;
     private readonly HtmlDocument htmlDoc;
     private readonly EloTable eloTable;
-    private readonly TableClient pictureTableClient;
+    private readonly PictureTable pictureTable;
     private readonly BlobContainerClient blobContainerClient;
     private const string CarDoesNotExistUrl = "https://www.thisautomobiledoesnotexist.com/";
 
@@ -46,7 +44,7 @@ public class GenerateNewEloFunction
         this.carNameGenerator = carNameGenerator;
         this.htmlDoc = new HtmlDocument();
         this.eloTable = eloTable;
-        this.pictureTableClient = pictureTable.Client;
+        this.pictureTable = pictureTable;
         this.blobContainerClient = blobClient;
     }
 
@@ -59,13 +57,13 @@ public class GenerateNewEloFunction
         for (int i = 0; i < 10; i++)
         {
             string carName;
-            Pageable<PictureEntity> queryUniquePictureEntities;
+            List<PictureEntity> queryUniquePictureEntities;
             do
             {
                 // verify uniqueness of name
                 carName = this.carNameGenerator.GetRandomCarName();
                 string name = carName;
-                queryUniquePictureEntities = this.pictureTableClient.Query<PictureEntity>(s => s.Name == name, 1);
+                queryUniquePictureEntities = this.pictureTable.GetPictureEntitiesByName(name);
             } while (queryUniquePictureEntities.Any());
 
             // go get a car image
@@ -89,11 +87,11 @@ public class GenerateNewEloFunction
             string src = imgNode.GetAttributeValue("src", "");
             PictureEntity pictureEntity = new() { Name = carName };
 
-            NullableResponse<PictureEntity> existingPictureEntity = await this.pictureTableClient.GetEntityIfExistsAsync<PictureEntity>(pictureEntity.PartitionKey, pictureEntity.RowKey);
-            while (existingPictureEntity.HasValue)
+            PictureEntity? existingPictureEntity = this.pictureTable.GetPictureEntityByRowKey(pictureEntity.RowKey);
+            while (existingPictureEntity != null)
             {
                 pictureEntity.RowKey = Guid.NewGuid().ToString();
-                existingPictureEntity = await this.pictureTableClient.GetEntityIfExistsAsync<PictureEntity>(pictureEntity.PartitionKey, pictureEntity.RowKey);
+                existingPictureEntity = this.pictureTable.GetPictureEntityByRowKey(pictureEntity.RowKey);
             }
 
             BlobClient? bigPictureCloudBlockBlob = this.blobContainerClient.GetBlobClient($"{pictureEntity.RowKey}.png");
@@ -178,11 +176,10 @@ public class GenerateNewEloFunction
 
             pictureEntity.PictureUri = picUri;
             pictureEntity.PictureSmlUri = smallPicUri;
-            await this.pictureTableClient.AddEntityAsync(pictureEntity);
+            await this.pictureTable.AddPictureEntityAsync(pictureEntity);
 
             // get all pictures from table
-            Pageable<PictureEntity> allPicturesQuery = this.pictureTableClient.Query<PictureEntity>();
-            List<PictureEntity> allPictures = allPicturesQuery.AsPages().SelectMany(page => page.Values).ToList();
+            List<PictureEntity> allPictures = this.pictureTable.GetAllPictureEntities();
 
             // exclude eloEntity from allPictures
             pictureEntity = allPictures.FirstOrDefault(s => s.RowKey == pictureEntity.RowKey)!;

@@ -16,7 +16,7 @@ public class GetElosToVoteFunction
 {
     private readonly ILogger logger;
     private readonly EloTable eloTable;
-    private readonly TableClient pictureTableClient;
+    private readonly PictureTable pictureTable;
 
     public GetElosToVoteFunction(
         ILoggerFactory loggerFactory,
@@ -25,7 +25,7 @@ public class GetElosToVoteFunction
     {
         this.logger = loggerFactory.CreateLogger<GetElosToVoteFunction>();
         this.eloTable = eloTable;
-        this.pictureTableClient = pictureTable.Client;
+        this.pictureTable = pictureTable;
     }
 
     [Function("GetElosToVote")]
@@ -61,13 +61,13 @@ public class GetElosToVoteFunction
         // ReSharper disable once ForeachCanBeConvertedToQueryUsingAnotherGetEnumerator
         foreach (EloEntity eloEntity in eloEntities)
         {
-            PictureEntity pictureEntity1 = this.pictureTableClient.GetEntity<PictureEntity>("Elo", eloEntity.PartitionKey);
-            PictureEntity pictureEntity2 = this.pictureTableClient.GetEntity<PictureEntity>("Elo", eloEntity.RowKey);
+            PictureEntity? pictureEntity1 = this.pictureTable.GetPictureEntityByRowKey(eloEntity.PartitionKey);
+            PictureEntity? pictureEntity2 = this.pictureTable.GetPictureEntityByRowKey(eloEntity.RowKey);
 
             elosToVote.Add(new EloVoteModel
             {
-                PicId1 = pictureEntity1.RowKey,
-                PicId2 = pictureEntity2.RowKey,
+                PicId1 = pictureEntity1!.RowKey,
+                PicId2 = pictureEntity2!.RowKey,
                 Name1 = pictureEntity1.Name,
                 Name2 = pictureEntity2.Name,
                 PictureUri1 = pictureEntity1.PictureUri,
