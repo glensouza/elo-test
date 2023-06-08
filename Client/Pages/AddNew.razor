@@ -1,5 +1,11 @@
 ﻿@page "/addNew"
 
+@using System.Linq
+@using System.Net.Http.Headers
+@using BlazorApp.Shared
+@using Microsoft.Extensions.Logging
+@inject ILogger<AddNew> Logger
+
 @inject HttpClient Http
 
 <PageTitle>Add New</PageTitle>
@@ -18,8 +24,118 @@
     </div>
 </div>
 
+<InputFile OnChange="@OnInputFileChange" multiple />
+
+@if (files.Count > 0)
+{
+    <div class="card">
+        <div class="card-body">
+            <ul>
+                @foreach (File file in files)
+                {
+                    <li>
+                        File: @file.Name
+                        <br>
+                        @if (FileUpload(uploadResults, file.Name, Logger, out UploadResult result))
+                        {
+                            <span>
+                                Stored File Name: @result.StoredFileName
+                            </span>
+                        }
+                        else
+                        {
+                            <span>
+                                There was an error uploading the file
+                                (Error: @result.ErrorCode).
+                            </span>
+                        }
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+}
+
 @code {
-    /*
-    PUT {{baseUrl}}/NewElo
-    */
+    private readonly List<File> files = new();
+    private List<UploadResult> uploadResults = new();
+    private const int MaxAllowedFiles = 3;
+    private bool shouldRender;
+
+    protected override bool ShouldRender() => shouldRender;
+
+    private async Task OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        shouldRender = false;
+        const long maxFileSize = 1024 * 1024 * 5;
+        bool upload = false;
+
+        using MultipartFormDataContent content = new();
+
+        foreach (IBrowserFile file in e.GetMultipleFiles(MaxAllowedFiles))
+        {
+            if (uploadResults.SingleOrDefault(f => f.FileName == file.Name) is not null)
+            {
+                continue;
+            }
+
+            try
+            {
+                files.Add(new File { Name = file.Name });
+
+                StreamContent fileContent = new(file.OpenReadStream(maxFileSize));
+
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+
+                content.Add(content: fileContent, name: "\"files\"", fileName: file.Name);
+
+                upload = true;
+            }
+            catch (Exception ex)
+            {
+                Logger.LogInformation("{FileName} not uploaded (Err: 6): {Message}", file.Name, ex.Message);
+
+                uploadResults.Add(new UploadResult
+                {
+                    FileName = file.Name,
+                    ErrorCode = 6,
+                    Uploaded = false
+                });
+            }
+        }
+
+        if (upload)
+        {
+            HttpResponseMessage response = await Http.PutAsync("/api/NewElo", content);
+
+            IList<UploadResult>? newUploadResults = await response.Content.ReadFromJsonAsync<IList<UploadResult>>();
+
+            if (newUploadResults is not null)
+            {
+                uploadResults = uploadResults.Concat(newUploadResults).ToList();
+            }
+        }
+
+        shouldRender = true;
+    }
+
+    private static bool FileUpload(IList<UploadResult> uploadResults, string? fileName, ILogger<AddNew> logger, out UploadResult result)
+    {
+        result = uploadResults.SingleOrDefault(f => f.FileName == fileName) ?? new();
+
+        if (result.Uploaded)
+        {
+            return result.Uploaded;
+        }
+
+        logger.LogInformation("{FileName} not uploaded (Err: 5)", fileName);
+        result.ErrorCode = 5;
+
+        return result.Uploaded;
+    }
+
+    private class File
+    {
+        public string? Name { get; set; }
+    }
 }
