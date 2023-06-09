@@ -59,7 +59,7 @@ else
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-primary" @onclick="GetRandomName">Get Random Name</button>
+                <button type="button" class="btn btn-info" @onclick="GetRandomName">Get Random Name</button>
                 <button type="button" class="btn btn-primary" @onclick="SaveChanges">Save changes</button>
                 <button type="button" class="btn btn-secondary" data-dismiss="modal" @onclick="CloseModal">Close</button>
             </div>
@@ -133,9 +133,6 @@ else
         if (!string.IsNullOrEmpty(editedName))
         {
             editElo.Name = editedName;
-            //const string url = "/api/EditName";
-            //Dictionary<string, string> newParams = new() { { "picId", editElo.PicId }, { "name", editedName } };
-            //Uri requestUri = new(QueryHelpers.AddQueryString(url, newParams));
             string requestUri = $"/api/EditName?picId={editElo.PicId}&name={HttpUtility.UrlEncode(editedName)}";
             await Http.PostAsync(requestUri, null);
             pictures = await Http.GetFromJsonAsync<List<EloModel>>("/api/GetAllElos") ?? new List<EloModel>();

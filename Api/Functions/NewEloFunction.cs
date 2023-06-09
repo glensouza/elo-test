@@ -5,8 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using Api.Data;
-using Azure;
-using Azure.Data.Tables;
+using Api.Queues;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Specialized;
 using Azure.Storage.Sas;
@@ -25,15 +24,15 @@ public class NewEloFunction
 {
     private readonly ILogger logger;
     private readonly PictureTable pictureTable;
-    private readonly EloTable eloTable;
     private readonly BlobContainerClient blobContainerClient;
+    private readonly NewPictureQueue newPictureQueue;
 
-    public NewEloFunction(ILoggerFactory loggerFactory, PictureTable pictureTable, EloTable eloTable, BlobContainerClient blobClient)
+    public NewEloFunction(ILoggerFactory loggerFactory, PictureTable pictureTable, BlobContainerClient blobClient, NewPictureQueue newPictureQueue)
     {
         this.logger = loggerFactory.CreateLogger<NewEloFunction>();
         this.pictureTable = pictureTable;
-        this.eloTable = eloTable;
         this.blobContainerClient = blobClient;
+        this.newPictureQueue = newPictureQueue;
     }
 
     [Function("NewElo")]
@@ -59,7 +58,9 @@ public class NewEloFunction
 
             PictureEntity pictureEntity = new()
             {
-                Name = parsedFormBody.HasParameter("name") ? parsedFormBody.GetParameterValues("name").First() : filename.Replace($"{Path.GetExtension(filename)}", string.Empty)
+                Name = parsedFormBody.HasParameter("name")
+                    ? parsedFormBody.GetParameterValues("name").First()
+                    : filename.Replace($"{Path.GetExtension(filename)}", string.Empty)
             };
 
             PictureEntity? existingPictureEntity = this.pictureTable.GetPictureEntityByRowKey(pictureEntity.RowKey);
@@ -156,38 +157,6 @@ public class NewEloFunction
                 this.logger.LogError("BlobClient must be authorized with Shared Key credentials to create a service SAS.");
             }
 
-            // get all pictures from table
-            List<PictureEntity> allPictures = this.pictureTable.GetAllPictureEntities();
-
-            if (allPictures.Count > 0)
-            {
-                // enter all competitions for this picture
-                foreach (string pictureId in allPictures.Select(s => s.RowKey))
-                {
-                    EloEntity? existingEloEntity = await this.eloTable.GetEloEntitiesByPartitionAndRowKey(pictureEntity.PartitionKey, pictureId);
-                    if (existingEloEntity != null)
-                    {
-                        existingEloEntity.Won = null;
-                        await this.eloTable.UpdateEloEntityAsync(existingEloEntity);
-                    }
-                    else
-                    {
-                        await this.eloTable.AddEloEntityAsync(new EloEntity { PartitionKey = pictureEntity.RowKey, RowKey = pictureId, Won = null });
-                    }
-
-                    existingEloEntity = await this.eloTable.GetEloEntitiesByPartitionAndRowKey(pictureId, pictureEntity.PartitionKey);
-                    if (existingEloEntity != null)
-                    {
-                        existingEloEntity.Won = null;
-                        await this.eloTable.UpdateEloEntityAsync(existingEloEntity);
-                    }
-                    else
-                    {
-                        await this.eloTable.AddEloEntityAsync(new EloEntity { PartitionKey = pictureId, RowKey = pictureEntity.RowKey, Won = null });
-                    }
-                }
-            }
-
             pictureEntity.PictureUri = uri;
             pictureEntity.PictureSmlUri = smallPicUri;
             await this.pictureTable.AddPictureEntityAsync(pictureEntity);
@@ -198,6 +167,8 @@ public class NewEloFunction
                 ErrorCode = 0,
                 Uploaded = true
             });
+
+            await this.newPictureQueue.SendMessageAsync(pictureEntity.RowKey);
         }
 
         HttpResponseData response = req.CreateResponse(HttpStatusCode.OK);

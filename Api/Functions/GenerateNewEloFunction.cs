@@ -17,6 +17,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.Processing;
 using Api.Helpers;
+using Api.Queues;
 
 namespace Api.Functions;
 
@@ -26,7 +27,7 @@ public class GenerateNewEloFunction
     private readonly HttpClient httpClient;
     private readonly CarNameGenerator carNameGenerator;
     private readonly HtmlDocument htmlDoc;
-    private readonly EloTable eloTable;
+    private readonly NewPictureQueue newPictureQueue;
     private readonly PictureTable pictureTable;
     private readonly BlobContainerClient blobContainerClient;
     private const string CarDoesNotExistUrl = "https://www.thisautomobiledoesnotexist.com/";
@@ -35,7 +36,7 @@ public class GenerateNewEloFunction
         ILoggerFactory loggerFactory,
         IHttpClientFactory httpClientFactory,
         CarNameGenerator carNameGenerator,
-        EloTable eloTable,
+        NewPictureQueue newPictureQueue,
         PictureTable pictureTable,
         BlobContainerClient blobClient)
     {
@@ -43,7 +44,7 @@ public class GenerateNewEloFunction
         this.httpClient = httpClientFactory.CreateClient();
         this.carNameGenerator = carNameGenerator;
         this.htmlDoc = new HtmlDocument();
-        this.eloTable = eloTable;
+        this.newPictureQueue = newPictureQueue;
         this.pictureTable = pictureTable;
         this.blobContainerClient = blobClient;
     }
@@ -177,44 +178,7 @@ public class GenerateNewEloFunction
             pictureEntity.PictureUri = picUri;
             pictureEntity.PictureSmlUri = smallPicUri;
             await this.pictureTable.AddPictureEntityAsync(pictureEntity);
-
-            // get all pictures from table
-            List<PictureEntity> allPictures = this.pictureTable.GetAllPictureEntities();
-
-            // exclude eloEntity from allPictures
-            pictureEntity = allPictures.FirstOrDefault(s => s.RowKey == pictureEntity.RowKey)!;
-            allPictures.Remove(pictureEntity);
-
-            if (allPictures.Count <= 0)
-            {
-                continue;
-            }
-
-            // enter all competitions for this picture
-            foreach (string pictureId in allPictures.Select(s => s.RowKey))
-            {
-                EloEntity? existingEloEntity = await this.eloTable.GetEloEntitiesByPartitionAndRowKey(pictureEntity.PartitionKey, pictureId);
-                if (existingEloEntity != null)
-                {
-                    existingEloEntity.Won = null;
-                    await this.eloTable.UpdateEloEntityAsync(existingEloEntity);
-                }
-                else
-                {
-                    await this.eloTable.AddEloEntityAsync(new EloEntity { PartitionKey = pictureEntity.RowKey, RowKey = pictureId, Won = null });
-                }
-
-                existingEloEntity = await this.eloTable.GetEloEntitiesByPartitionAndRowKey(pictureId, pictureEntity.PartitionKey);
-                if (existingEloEntity != null)
-                {
-                    existingEloEntity.Won = null;
-                    await this.eloTable.UpdateEloEntityAsync(existingEloEntity);
-                }
-                else
-                {
-                    await this.eloTable.AddEloEntityAsync(new EloEntity { PartitionKey = pictureId, RowKey = pictureEntity.RowKey, Won = null });
-                }
-            }
+            await this.newPictureQueue.SendMessageAsync(pictureEntity.RowKey);
         }
 
         HttpResponseData response = req.CreateResponse(HttpStatusCode.OK);

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using Api.Data;
+using Api.Queues;
 using Azure.Storage.Blobs;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -13,15 +14,13 @@ public class DeletePictureFunction
 {
     private readonly ILogger logger;
     private readonly PictureTable pictureTable;
-    private readonly EloTable eloTable;
-    private readonly BlobContainerClient blobContainerClient;
+    private readonly DeleteQueue deleteQueue;
 
-    public DeletePictureFunction(ILoggerFactory loggerFactory, PictureTable pictureTable, EloTable eloTable, BlobContainerClient blobClient)
+    public DeletePictureFunction(ILoggerFactory loggerFactory, PictureTable pictureTable, DeleteQueue deleteQueue)
     {
         this.logger = loggerFactory.CreateLogger<DeletePictureFunction>();
         this.pictureTable = pictureTable;
-        this.eloTable = eloTable;
-        this.blobContainerClient = blobClient;
+        this.deleteQueue = deleteQueue;
     }
 
     [Function("DeletePicture")]
@@ -35,48 +34,14 @@ public class DeletePictureFunction
             return req.CreateResponse(HttpStatusCode.BadRequest);
         }
 
-        List<EloEntity> eloEntities = this.eloTable.GetEloEntitiesByPartitionKey(picId);
-        foreach (EloEntity eloEntity in eloEntities)
-        {
-            PictureEntity? pictureToUpdate = this.pictureTable.GetPictureEntityByRowKey(eloEntity.RowKey);
-            if (pictureToUpdate != null && eloEntity.Score != null)
-            {
-                pictureToUpdate.Rating += (double)eloEntity.Score;
-                await this.pictureTable.UpdatePictureEntityAsync(pictureToUpdate);
-            }
-
-            await this.eloTable.DeleteEloEntityAsync(picId, eloEntity.RowKey);
-            await this.eloTable.DeleteEloEntityAsync(eloEntity.RowKey, picId);
-        }
-
-        eloEntities = this.eloTable.GetEloEntitiesByRowKey(picId);
-        foreach (EloEntity eloEntity in eloEntities)
-        {
-            await this.eloTable.DeleteEloEntityAsync(picId, eloEntity.RowKey);
-            await this.eloTable.DeleteEloEntityAsync(eloEntity.RowKey, picId);
-        }
-
         PictureEntity? pictureToDelete = this.pictureTable.GetPictureEntityByRowKey(picId);
-        if (pictureToDelete != null)
+        if (pictureToDelete == null)
         {
-            await this.pictureTable.DeletePictureEntityAsync(pictureToDelete.RowKey);
+            return req.CreateResponse(HttpStatusCode.NotFound);
         }
 
-        BlobClient? bigPictureCloudBlockBlob = this.blobContainerClient.GetBlobClient($"{picId}.png");
-        bool fileExists = await bigPictureCloudBlockBlob.ExistsAsync();
-        while (fileExists)
-        {
-            await bigPictureCloudBlockBlob.DeleteAsync();
-            fileExists = await bigPictureCloudBlockBlob.ExistsAsync();
-        }
-
-        BlobClient? smallPictureCloudBlockBlob = this.blobContainerClient.GetBlobClient($"{picId}_sml.png");
-        fileExists = await smallPictureCloudBlockBlob.ExistsAsync();
-        while (fileExists)
-        {
-            await smallPictureCloudBlockBlob.DeleteAsync();
-            fileExists = await smallPictureCloudBlockBlob.ExistsAsync();
-        }
+        await this.pictureTable.DeletePictureEntityAsync(pictureToDelete.RowKey);
+        await this.deleteQueue.SendMessageAsync(picId);
 
         return req.CreateResponse(HttpStatusCode.OK);
     }

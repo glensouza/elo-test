@@ -2,7 +2,11 @@
 
 public static class Constants
 {
-    public const string PictureTableName = "picture";
-    public const string PictureTablePartitionKey = "Elo";
-    public const string EloTableName = "winlose";
+    public const string PictureTablePartitionKey = "Picture";
+    public const string PictureTableName = "pictures";
+    public const string EloTableName = "votes";
+    public const string DeleteQueueName = "delete";
+    public const string ResetQueueName = "reset";
+    public const string VoteQueueName = "vote";
+    public const string NewPictureQueueName = "newpic";
 }

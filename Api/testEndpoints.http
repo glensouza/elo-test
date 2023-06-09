@@ -3,6 +3,12 @@
 @loser = {{GetElosToVote.response.body.$[0].PicId2}}
 
 ###
+DELETE {{baseUrl}}/DeletePicture
+
+###
+POST {{baseUrl}}/EditName
+
+###
 POST {{baseUrl}}/GenerateNewElo
 
 ###
@@ -13,10 +19,13 @@ GET {{baseUrl}}/GetAllElos
 GET {{baseUrl}}/GetElosToVote
 
 ###
+GET {{baseUrl}}/GetRandomCarName
+
+###
 PUT {{baseUrl}}/NewElo
 
 ###
 POST {{baseUrl}}/ResetEloVoting
 
 ###
-POST {{baseUrl}}/voteelo/?winner={{winner}}&loser={{loser}}
+POST {{baseUrl}}/VoteElo/?winner={{winner}}&loser={{loser}}
