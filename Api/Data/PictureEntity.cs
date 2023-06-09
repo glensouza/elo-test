@@ -6,7 +6,7 @@ namespace Api.Data;
 
 public class PictureEntity : ITableEntity
 {
-    public string PartitionKey { get; set; } = "Elo";
+    public string PartitionKey { get; set; } = Constants.PictureTablePartitionKey;
     public string RowKey { get; set; } = Guid.NewGuid().ToString();
     public string Name { get; set; } = string.Empty;
     public string PictureUri { get; set; } = string.Empty;

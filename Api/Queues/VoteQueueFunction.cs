@@ -1,8 +1,6 @@
-using System;
-using System.Net;
-using System.Reflection;
 using System.Threading.Tasks;
 using Api.Data;
+using Api.Helpers;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 
@@ -13,7 +11,6 @@ namespace Api.Queues
         private readonly ILogger logger;
         private readonly PictureTable pictureTable;
         private readonly EloTable eloTable;
-        private const int KFactor = 32;
 
         public VoteQueueFunction(ILoggerFactory loggerFactory, PictureTable pictureTable, EloTable eloTable)
         {
@@ -85,13 +82,8 @@ namespace Api.Queues
 
             loserElo!.Won = false;
 
-            // Calculate the expected scores for each picture
-            double winnerExpectedScore = 1 / (1 + Math.Pow(10, (loserPictureEntity.Rating - winnerPictureEntity.Rating) / 400));
-            double loserExpectedScore = 1 / (1 + Math.Pow(10, (winnerPictureEntity.Rating - loserPictureEntity.Rating) / 400));
+            (double winnerScore, double loserScore) = EloCalculator.CalculateElo(winnerPictureEntity.Rating, loserPictureEntity.Rating);
 
-            // Update the ratings for each picture
-            double winnerScore = KFactor * (1 - winnerExpectedScore);
-            double loserScore = KFactor * (0 - loserExpectedScore);
             winnerPictureEntity.Rating += winnerScore;
             loserPictureEntity.Rating += loserScore;
             winnerElo.Score = winnerScore;

@@ -3,8 +3,6 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using Api.Data;
-using Azure;
-using Azure.Data.Tables;
 using BlazorApp.Shared;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;

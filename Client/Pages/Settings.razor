@@ -6,7 +6,8 @@
 
 <h1>Settings</h1>
 
-<button class="btn btn-success" @onclick="GenerateEntries">Generate 10 entries</button>
+<button class="btn btn-success" @onclick="GenerateEntries">Generate 10 Random Entries</button>
+<button class="btn btn-warning" @onclick="RecalculateVoting">Recalculate Votes</button>
 <button class="btn btn-danger" @onclick="ResetVoting">Reset Voting</button>
 
 @code {
@@ -27,6 +28,11 @@
     private async Task GenerateEntries()
     {
         await Http.PostAsync("/api/GenerateNewElo", null);
+    }
+
+    private async Task RecalculateVoting()
+    {
+       await Http.PostAsync("/api/RecalculateEloVoting", null);
     }
 
     private async Task ResetVoting()

@@ -4,19 +4,19 @@ using Api.Data;
 
 namespace Api.Queues;
 
-public class ResetQueue
+public class RecalculateQueue
 {
     private readonly QueueClient queueClient;
 
-    public ResetQueue(string storageConnectionString)
+    public RecalculateQueue(string storageConnectionString)
     {
-        this.queueClient = new QueueClient(storageConnectionString, Constants.ResetQueueName);
+        this.queueClient = new QueueClient(storageConnectionString, Constants.RecalculateQueueName);
         this.queueClient.CreateIfNotExists();
     }
 
     public async Task SendMessageAsync()
     {
-        string notification = QueueHelper.PrepareMessageString(Constants.ResetQueueName);
+        string notification = QueueHelper.PrepareMessageString(Constants.RecalculateQueueName);
         await this.queueClient.SendMessageAsync(notification);
     }
 }

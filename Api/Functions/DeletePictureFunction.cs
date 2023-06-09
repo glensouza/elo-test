@@ -1,9 +1,7 @@
-using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using Api.Data;
 using Api.Queues;
-using Azure.Storage.Blobs;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -40,7 +38,7 @@ public class DeletePictureFunction
             return req.CreateResponse(HttpStatusCode.NotFound);
         }
 
-        await this.pictureTable.DeletePictureEntityAsync(pictureToDelete.RowKey);
+        await this.pictureTable.DeletePictureEntityAsync(picId);
         await this.deleteQueue.SendMessageAsync(picId);
 
         return req.CreateResponse(HttpStatusCode.OK);

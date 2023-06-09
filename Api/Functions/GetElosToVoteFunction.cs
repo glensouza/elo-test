@@ -4,7 +4,6 @@ using System.Net;
 using System.Threading.Tasks;
 using Api.Data;
 using Api.Helpers;
-using Azure.Data.Tables;
 using BlazorApp.Shared;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -64,17 +63,20 @@ public class GetElosToVoteFunction
             PictureEntity? pictureEntity1 = this.pictureTable.GetPictureEntityByRowKey(eloEntity.PartitionKey);
             PictureEntity? pictureEntity2 = this.pictureTable.GetPictureEntityByRowKey(eloEntity.RowKey);
 
-            elosToVote.Add(new EloVoteModel
+            if (pictureEntity1 != null && pictureEntity2 != null)
             {
-                PicId1 = pictureEntity1!.RowKey,
-                PicId2 = pictureEntity2!.RowKey,
-                Name1 = pictureEntity1.Name,
-                Name2 = pictureEntity2.Name,
-                PictureUri1 = pictureEntity1.PictureUri,
-                PictureSmallUri1 = pictureEntity1.PictureSmlUri,
-                PictureUri2 = pictureEntity2.PictureUri,
-                PictureSmallUri2 = pictureEntity2.PictureSmlUri
-            });
+                elosToVote.Add(new EloVoteModel
+                {
+                    PicId1 = pictureEntity1.RowKey,
+                    PicId2 = pictureEntity2.RowKey,
+                    Name1 = pictureEntity1.Name,
+                    Name2 = pictureEntity2.Name,
+                    PictureUri1 = pictureEntity1.PictureUri,
+                    PictureSmallUri1 = pictureEntity1.PictureSmlUri,
+                    PictureUri2 = pictureEntity2.PictureUri,
+                    PictureSmallUri2 = pictureEntity2.PictureSmlUri
+                });
+            }
         }
 
         HttpResponseData response = req.CreateResponse(HttpStatusCode.OK);

@@ -1,7 +1,5 @@
-using System;
 using System.Net;
 using System.Threading.Tasks;
-using Api.Data;
 using Api.Queues;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;

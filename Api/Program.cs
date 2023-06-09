@@ -21,13 +21,14 @@ IHost host = new HostBuilder()
         s.AddSingleton(_ => new CarNameGenerator());
         s.AddSingleton(_ => new DeleteQueue(storageConnectionString));
         s.AddSingleton(_ => new NewPictureQueue(storageConnectionString));
+        s.AddSingleton(_ => new RecalculateQueue(storageConnectionString));
         s.AddSingleton(_ => new ResetQueue(storageConnectionString));
         s.AddSingleton(_ => new VoteQueue(storageConnectionString));
         s.AddSingleton(_ => new EloTable(storageConnectionString));
         s.AddSingleton(_ => new PictureTable(storageConnectionString));
         s.AddSingleton(_ =>
         {
-            BlobContainerClient container = new(storageConnectionString, "elo");
+            BlobContainerClient container = new(storageConnectionString, Constants.PictureTablePartitionKey.ToLower());
             container.CreateIfNotExists();
             return container;
         });

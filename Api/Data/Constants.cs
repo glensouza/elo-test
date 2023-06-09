@@ -9,4 +9,5 @@ public static class Constants
     public const string ResetQueueName = "reset";
     public const string VoteQueueName = "vote";
     public const string NewPictureQueueName = "newpic";
+    public const string RecalculateQueueName = "recalculate";
 }
